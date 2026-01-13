@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 import { z } from "zod"
-import { embeddingService } from "@/lib/ai/embedding"
 
 const summarySchema = z.object({
   summary: z.string().min(1, "摘要不能为空").max(2000, "摘要不能超过2000字"),
@@ -21,7 +20,7 @@ export async function GET(
     const { novelId, chapterId } = await params
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -29,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    const summary = await prisma.chapterSummary.findUnique({
+    const summary = await db.chapterSummary.findUnique({
       where: { chapterId },
     })
 
@@ -57,7 +56,7 @@ export async function PUT(
     const validatedData = summarySchema.parse(body)
 
     // 验证小说和章节属于当前用户
-    const chapter = await prisma.chapter.findFirst({
+    const chapter = await db.chapter.findFirst({
       where: {
         id: chapterId,
         novelId,
@@ -70,7 +69,7 @@ export async function PUT(
     }
 
     // upsert 摘要
-    const summary = await prisma.chapterSummary.upsert({
+    const summary = await db.chapterSummary.upsert({
       where: { chapterId },
       update: {
         summary: validatedData.summary,
@@ -86,11 +85,6 @@ export async function PUT(
         tokenCount: validatedData.tokenCount,
         isManual: validatedData.isManual,
       },
-    })
-
-    // 异步生成 embedding（不阻塞响应）
-    embeddingService.updateSummaryEmbedding(summary.id).catch(err => {
-      console.error("生成摘要 embedding 失败:", err)
     })
 
     return NextResponse.json(summary)
@@ -113,7 +107,7 @@ export async function DELETE(
     const { novelId, chapterId } = await params
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -121,7 +115,7 @@ export async function DELETE(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    await prisma.chapterSummary.delete({
+    await db.chapterSummary.delete({
       where: { chapterId },
     })
 

@@ -6,7 +6,6 @@ import { withCredits, getCreditsErrorStatus } from "@/lib/credits"
 import { IMAGE_CREDITS } from "@/lib/pricing/credits"
 import { requireUserId } from "@/lib/auth/get-user"
 import { sanitizePromptInput } from "@/lib/security"
-import { getAccessibleImageUrl, isOSSConfigured } from "@/lib/aliyun-oss"
 
 // POST /api/novels/[novelId]/generate-cover - 生成封面
 export async function POST(
@@ -67,19 +66,14 @@ export async function POST(
           author: coverAuthor,
         })
 
-        // 更新小说的 coverUrl（存储原始OSS路径）
+        // 更新小说的 coverUrl
         await prisma.novel.update({
           where: { id: novelId },
           data: { coverUrl: saved.imageUrl },
         })
 
-        // 转换为可访问的URL
-        const accessibleUrl = isOSSConfigured()
-          ? getAccessibleImageUrl(saved.imageUrl)
-          : saved.imageUrl
-
         return {
-          coverUrl: accessibleUrl,
+          coverUrl: saved.imageUrl,
           id: saved.id,
         }
       }

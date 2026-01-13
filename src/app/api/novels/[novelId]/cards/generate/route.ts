@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
 import { generateCard } from "@/lib/ai/gemini"
@@ -53,7 +53,7 @@ export async function POST(
     const requiredCredits = modelConfig.credits
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -62,7 +62,7 @@ export async function POST(
     }
 
     // 获取已有卡片名称，避免重复
-    const existingCards = await prisma.card.findMany({
+    const existingCards = await db.card.findMany({
       where: { novelId, category: validatedData.category },
       select: { name: true },
     })

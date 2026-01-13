@@ -18,4 +18,7 @@ function createPrismaClient() {
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
+// 别名导出，支持使用 db 作为名称
+export const db = prisma
+
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma

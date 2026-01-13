@@ -1,8 +1,7 @@
 "use client";
 
-import { X, Search, Bell, Sparkles } from "lucide-react";
+import { X, Search, Bell } from "lucide-react";
 import { useState } from "react";
-import { useUserStore } from "@/stores/user-store";
 
 interface TopBarProps {
   title?: string;
@@ -11,7 +10,6 @@ interface TopBarProps {
 
 export function TopBar({ title = "我的作品", showWelcome = true }: TopBarProps) {
   const [showBanner, setShowBanner] = useState(true);
-  const profile = useUserStore((state) => state.profile);
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -39,14 +37,6 @@ export function TopBar({ title = "我的作品", showWelcome = true }: TopBarPro
       <div className="flex h-14 items-center justify-between px-4">
         <h1 className="text-base font-normal text-neutral-950">{title}</h1>
         <div className="flex items-center gap-3">
-          {/* Token Balance */}
-          <div className="flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1.5">
-            <Sparkles className="size-4 text-indigo-500" />
-            <span className="text-sm font-medium text-indigo-600">
-              {profile?.creditBalance ?? "--"} 灵感点
-            </span>
-          </div>
-
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6a7282]" />

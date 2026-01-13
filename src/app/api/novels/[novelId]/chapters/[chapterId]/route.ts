@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { updateChapterSchema } from "@/lib/validations/chapter"
 import { ZodError } from "zod"
 import { requireUserId } from "@/lib/auth/get-user"
@@ -14,7 +14,7 @@ export async function GET(
     const { novelId, chapterId } = await params
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    const chapter = await prisma.chapter.findUnique({
+    const chapter = await db.chapter.findUnique({
       where: { id: chapterId, novelId },
     })
 
@@ -50,7 +50,7 @@ export async function PATCH(
     const validatedData = updateChapterSchema.parse(body)
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -58,7 +58,7 @@ export async function PATCH(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    const existingChapter = await prisma.chapter.findUnique({
+    const existingChapter = await db.chapter.findUnique({
       where: { id: chapterId, novelId },
     })
 
@@ -80,7 +80,7 @@ export async function PATCH(
     // 如果状态变化，需要重新计算 number
     let newNumber = existingChapter.number
     if (statusChanged) {
-      const lastChapter = await prisma.chapter.findFirst({
+      const lastChapter = await db.chapter.findFirst({
         where: { novelId, status: newStatus },
         orderBy: { number: "desc" },
       })
@@ -88,7 +88,7 @@ export async function PATCH(
     }
 
     // 更新章节
-    const chapter = await prisma.chapter.update({
+    const chapter = await db.chapter.update({
       where: { id: chapterId },
       data: {
         ...(validatedData.title && { title: validatedData.title }),
@@ -121,7 +121,7 @@ export async function PATCH(
 
     // 更新小说总字数
     if (totalWordsDiff !== 0) {
-      await prisma.novel.update({
+      await db.novel.update({
         where: { id: novelId },
         data: {
           totalWords: { increment: totalWordsDiff },
@@ -131,13 +131,13 @@ export async function PATCH(
 
     // 如果状态变化，重新排序原状态的章节
     if (statusChanged) {
-      const chaptersToReorder = await prisma.chapter.findMany({
+      const chaptersToReorder = await db.chapter.findMany({
         where: { novelId, status: oldStatus },
         orderBy: { number: "asc" },
       })
       for (let i = 0; i < chaptersToReorder.length; i++) {
         if (chaptersToReorder[i].number !== i + 1) {
-          await prisma.chapter.update({
+          await db.chapter.update({
             where: { id: chaptersToReorder[i].id },
             data: { number: i + 1 },
           })

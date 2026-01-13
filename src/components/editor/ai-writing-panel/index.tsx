@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState, useCallback, useEffect } from "react"
-import { Sparkles, X, Info, Search, FileText, Coins, Brain, Loader2 } from "lucide-react"
+import { useMemo, useCallback, useEffect } from "react"
+import { Sparkles, X, Info, Search, FileText, Coins } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAIWritingForm } from "./hooks/use-ai-writing-form"
 import { ModelSelector, ThinkingPanel, CharacterPicker, TermPicker, ChapterPicker, ChapterOutlineLink, ContextPreview } from "./components"
@@ -33,87 +33,14 @@ export function AIWritingPanel({
   // 获取摘要数据
   const { data: summariesData } = useSummaries(novelId || "")
 
-  // 语义检索状态
-  const [semanticCards, setSemanticCards] = useState<{ id: string; name: string; category: string; score: number }[]>([])
-  const [semanticSummaries, setSemanticSummaries] = useState<{ id: string; chapterTitle: string; score: number }[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
-  // 被排除的语义匹配 ID
-  const [excludedCardIds, setExcludedCardIds] = useState<Set<string>>(new Set())
-  const [excludedSummaryIds, setExcludedSummaryIds] = useState<Set<string>>(new Set())
-
-  // 手动触发语义检索
-  const handleSemanticSearch = useCallback(async () => {
-    if (!novelId || !form.chapterPlot || form.chapterPlot.length < 10) {
-      return
-    }
-
-    setIsSearching(true)
-    try {
-      const res = await fetch(`/api/novels/${novelId}/embeddings/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: form.chapterPlot,
-          topK: 5,
-          currentChapterId, // 只返回当前章节之前的摘要
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setSemanticCards(data.cards || [])
-        setSemanticSummaries(data.summaries || [])
-        setHasSearched(true)
-      }
-    } catch (err) {
-      console.error("语义检索失败:", err)
-    } finally {
-      setIsSearching(false)
-    }
-  }, [novelId, form.chapterPlot, currentChapterId])
-
-  // 切换章节时重置语义检索状态和本章核心剧情
+  // 切换章节时重置本章核心剧情
   useEffect(() => {
-    setSemanticCards([])
-    setSemanticSummaries([])
-    setHasSearched(false)
-    setExcludedCardIds(new Set())
-    setExcludedSummaryIds(new Set())
     form.setChapterPlot("")
   }, [currentChapterId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 排除语义匹配的卡片
-  const handleExcludeCard = useCallback((id: string) => {
-    setExcludedCardIds(prev => new Set([...prev, id]))
-  }, [])
-
-  // 排除语义匹配的摘要
-  const handleExcludeSummary = useCallback((id: string) => {
-    setExcludedSummaryIds(prev => new Set([...prev, id]))
-  }, [])
-
-  // 过滤后的语义匹配结果
-  const filteredSemanticCards = useMemo(() =>
-    semanticCards.filter(c => !excludedCardIds.has(c.id)),
-    [semanticCards, excludedCardIds]
-  )
-
-  const filteredSemanticSummaries = useMemo(() =>
-    semanticSummaries.filter(s => !excludedSummaryIds.has(s.id)),
-    [semanticSummaries, excludedSummaryIds]
-  )
-
-  // 检索条件是否满足
-  const canSemanticSearch = !!(novelId && form.chapterPlot && form.chapterPlot.length >= 10)
-
   const handleGenerate = () => {
     const params = form.buildGenerateParams()
-    // 添加排除的语义匹配 ID
-    onGenerate({
-      ...params,
-      excludedCardIds: excludedCardIds.size > 0 ? Array.from(excludedCardIds) : undefined,
-      excludedSummaryIds: excludedSummaryIds.size > 0 ? Array.from(excludedSummaryIds) : undefined,
-    })
+    onGenerate(params)
   }
 
   const toggleCharacter = (id: string) => {
@@ -278,10 +205,6 @@ export function AIWritingPanel({
           matchedCards={contextPreviewData.matchedCards}
           linkedChapters={contextPreviewData.linkedChapters}
           outlineContent={contextPreviewData.outlineContent}
-          semanticCards={filteredSemanticCards}
-          semanticSummaries={filteredSemanticSummaries}
-          onExcludeCard={handleExcludeCard}
-          onExcludeSummary={handleExcludeSummary}
         />
 
         {/* AI Model */}
@@ -474,39 +397,11 @@ export function AIWritingPanel({
         <div className="mb-4">
           <div className="mb-1 flex items-center justify-between">
             <label className="text-sm font-medium text-neutral-950">本章核心剧情</label>
-            {canSemanticSearch && !hasSearched && (
-              <button
-                onClick={handleSemanticSearch}
-                disabled={isSearching}
-                className="flex items-center gap-1 rounded px-2 py-0.5 text-xs text-purple-600 hover:bg-purple-50 disabled:opacity-50"
-              >
-                {isSearching ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Brain className="size-3" />
-                )}
-                <span>{isSearching ? "匹配中..." : "智能匹配"}</span>
-              </button>
-            )}
-            {hasSearched && (
-              <span className="flex items-center gap-1 text-xs text-purple-600">
-                <Brain className="size-3" />
-                已匹配
-              </span>
-            )}
           </div>
           <div className="relative">
             <textarea
               value={form.chapterPlot}
-              onChange={(e) => {
-                form.setChapterPlot(e.target.value)
-                // 内容改变时重置检索状态
-                if (hasSearched) {
-                  setHasSearched(false)
-                  setSemanticCards([])
-                  setSemanticSummaries([])
-                }
-              }}
+              onChange={(e) => form.setChapterPlot(e.target.value)}
               placeholder="在这里输入你的剧情片段或者细纲"
               maxLength={3000}
               className="h-28 w-full resize-none rounded border border-gray-300 p-3 text-sm outline-none placeholder:text-gray-400 focus:border-[#2b7fff]"

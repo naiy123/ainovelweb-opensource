@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 
 // GET /api/novels/[novelId] - 获取小说详情
@@ -11,7 +11,7 @@ export async function GET(
     const userId = await requireUserId()
     const { novelId } = await params
 
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
       include: {
         chapters: {
@@ -42,7 +42,7 @@ export async function PATCH(
     const body = await request.json()
 
     // 检查小说是否存在
-    const existing = await prisma.novel.findUnique({
+    const existing = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -51,7 +51,7 @@ export async function PATCH(
     }
 
     // 更新小说（始终验证 userId 确保权限）
-    const novel = await prisma.novel.update({
+    const novel = await db.novel.update({
       where: { id: novelId, userId },
       data: {
         title: body.title,
@@ -78,7 +78,7 @@ export async function DELETE(
     const { novelId } = await params
 
     // 检查小说是否存在
-    const existing = await prisma.novel.findUnique({
+    const existing = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -87,7 +87,7 @@ export async function DELETE(
     }
 
     // 删除小说（始终验证 userId 确保权限，会级联删除相关章节）
-    await prisma.novel.delete({
+    await db.novel.delete({
       where: { id: novelId, userId },
     })
 

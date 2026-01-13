@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 
 // GET /api/user/token-usage - 获取用户 Token 使用统计
@@ -8,7 +8,7 @@ export async function GET() {
     const userId = await requireUserId()
 
     // 聚合查询用户的所有 token 消耗
-    const stats = await prisma.aIGenerationLog.aggregate({
+    const stats = await db.aIGenerationLog.aggregate({
       where: { userId },
       _sum: {
         inputTokens: true,
@@ -25,7 +25,7 @@ export async function GET() {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const todayStats = await prisma.aIGenerationLog.aggregate({
+    const todayStats = await db.aIGenerationLog.aggregate({
       where: {
         userId,
         createdAt: { gte: today },
@@ -44,7 +44,7 @@ export async function GET() {
     // 获取本月统计
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
-    const monthStats = await prisma.aIGenerationLog.aggregate({
+    const monthStats = await db.aIGenerationLog.aggregate({
       where: {
         userId,
         createdAt: { gte: monthStart },

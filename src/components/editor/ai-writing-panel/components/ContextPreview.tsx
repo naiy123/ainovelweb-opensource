@@ -1,21 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronDown, ChevronUp, FileText, User, BookOpen, ScrollText, Link2, Brain, X } from "lucide-react"
+import { ChevronDown, ChevronUp, FileText, User, BookOpen, ScrollText, Link2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-interface SemanticMatch {
-  id: string
-  name: string
-  category: string
-  score: number
-}
-
-interface SemanticSummary {
-  id: string
-  chapterTitle: string
-  score: number
-}
 
 interface ChapterSummaryInfo {
   id: string
@@ -36,13 +23,6 @@ interface ContextPreviewProps {
   linkedChapters?: { title: string; wordCount: number }[]
   // 大纲
   outlineContent?: string
-  // 语义匹配的设定卡（从父组件传入）
-  semanticCards?: SemanticMatch[]
-  // 语义匹配的摘要（从父组件传入）
-  semanticSummaries?: SemanticSummary[]
-  // 排除回调
-  onExcludeCard?: (id: string) => void
-  onExcludeSummary?: (id: string) => void
 }
 
 // 估算 token 数量
@@ -60,10 +40,6 @@ export function ContextPreview({
   matchedCards = [],
   linkedChapters = [],
   outlineContent,
-  semanticCards = [],
-  semanticSummaries = [],
-  onExcludeCard,
-  onExcludeSummary,
 }: ContextPreviewProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -78,31 +54,23 @@ export function ContextPreview({
       (sum, c) => sum + 100, // 假设每张卡片约 100 字
       0
     )
-    // 语义匹配的卡片
-    const semanticCardsChars = semanticCards.length * 100
     const linkedChars = linkedChapters.reduce(
       (sum, c) => sum + c.wordCount,
       0
     )
     const outlineChars = outlineContent?.length || 0
-    // 语义匹配的摘要
-    const semanticSummariesChars = semanticSummaries.length * 200
 
-    const total = novelSummaryChars + summariesChars + Math.max(cardsChars, semanticCardsChars) + linkedChars + outlineChars + semanticSummariesChars
+    const total = novelSummaryChars + summariesChars + cardsChars + linkedChars + outlineChars
 
     return {
       novelSummary: novelSummaryChars,
       summaries: summariesChars,
       cards: cardsChars,
-      semanticCards: semanticCardsChars,
-      semanticSummaries: semanticSummariesChars,
       linked: linkedChars,
       outline: outlineChars,
       total,
     }
-  }, [novelSummary, chapterSummaries, matchedCards, linkedChapters, outlineContent, semanticCards, semanticSummaries])
-
-  const hasSemanticResults = semanticCards.length > 0 || semanticSummaries.length > 0
+  }, [novelSummary, chapterSummaries, matchedCards, linkedChapters, outlineContent])
 
   const hasContext = stats.total > 0
 
@@ -162,82 +130,8 @@ export function ContextPreview({
             </div>
           )}
 
-          {/* 语义检索结果 */}
-          {hasSemanticResults && (
-            <div className="text-xs border-l-2 border-purple-300 pl-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-purple-600">
-                  <Brain className="size-3" />
-                  <span>智能匹配</span>
-                </div>
-                <span className="text-gray-500">
-                  {semanticCards.length} 设定 · {semanticSummaries.length} 摘要
-                </span>
-              </div>
-              {semanticCards.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {semanticCards.slice(0, 5).map((card) => (
-                    <span
-                      key={card.id}
-                      className={cn(
-                        "rounded px-1.5 py-0.5 text-xs flex items-center gap-1 group",
-                        card.category === "character"
-                          ? "bg-blue-50 text-blue-600"
-                          : "bg-purple-50 text-purple-600"
-                      )}
-                      title={`相似度: ${card.score}%`}
-                    >
-                      {card.name}
-                      <span className="opacity-60 text-[10px]">{card.score}%</span>
-                      {onExcludeCard && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onExcludeCard(card.id)
-                          }}
-                          className="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
-                          title="移除"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                  {semanticCards.length > 5 && (
-                    <span className="text-gray-400">+{semanticCards.length - 5}</span>
-                  )}
-                </div>
-              )}
-              {semanticSummaries.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {semanticSummaries.slice(0, 3).map((s) => (
-                    <span
-                      key={s.id}
-                      className="rounded bg-green-50 px-1.5 py-0.5 text-xs text-green-600 flex items-center gap-1 group"
-                      title={`相似度: ${s.score}%`}
-                    >
-                      {s.chapterTitle.slice(0, 10)}
-                      {onExcludeSummary && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onExcludeSummary(s.id)
-                          }}
-                          className="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
-                          title="移除"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 触发词匹配设定（仅当无语义结果时显示） */}
-          {matchedCards.length > 0 && !hasSemanticResults && (
+          {/* 触发词匹配设定 */}
+          {matchedCards.length > 0 && (
             <div className="text-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-gray-600">

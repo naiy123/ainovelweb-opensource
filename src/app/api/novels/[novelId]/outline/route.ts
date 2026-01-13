@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 import { createOutlineNodeSchema, getChildNodeType, type OutlineNodeType } from "@/lib/validations/outline"
 
@@ -29,7 +29,7 @@ export async function GET(
     const { novelId } = await params
 
     // 验证小说归属
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -38,7 +38,7 @@ export async function GET(
     }
 
     // 获取所有大纲节点
-    const nodes = await prisma.outlineNode.findMany({
+    const nodes = await db.outlineNode.findMany({
       where: { novelId },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     })
@@ -75,7 +75,7 @@ export async function POST(
     const body = await request.json()
 
     // 验证小说归属
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -91,7 +91,7 @@ export async function POST(
     let parentNode = null
 
     if (validatedData.parentId) {
-      parentNode = await prisma.outlineNode.findUnique({
+      parentNode = await db.outlineNode.findUnique({
         where: { id: validatedData.parentId, novelId },
       })
       if (!parentNode) {
@@ -106,7 +106,7 @@ export async function POST(
 
     // 如果是章纲，验证关联的章节存在
     if (nodeType === "chapter_outline" && validatedData.linkedChapterId) {
-      const chapter = await prisma.chapter.findUnique({
+      const chapter = await db.chapter.findUnique({
         where: { id: validatedData.linkedChapterId, novelId },
       })
       if (!chapter) {
@@ -115,7 +115,7 @@ export async function POST(
     }
 
     // 计算 sortOrder (同级节点中最大值 + 1)
-    const lastNode = await prisma.outlineNode.findFirst({
+    const lastNode = await db.outlineNode.findFirst({
       where: {
         novelId,
         parentId: validatedData.parentId ?? null,
@@ -125,7 +125,7 @@ export async function POST(
     const sortOrder = (lastNode?.sortOrder ?? -1) + 1
 
     // 创建节点
-    const node = await prisma.outlineNode.create({
+    const node = await db.outlineNode.create({
       data: {
         novelId,
         parentId: validatedData.parentId ?? null,

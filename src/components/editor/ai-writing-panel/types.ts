@@ -42,9 +42,6 @@ export interface AIGenerateParams {
   terms?: TermCardInfo[]
   characterRelations?: string
   linkedChapters?: LinkedChapterInfo[]
-  // 排除的语义匹配 ID（用户手动移除的）
-  excludedCardIds?: string[]
-  excludedSummaryIds?: string[]
 }
 
 // 组件 Props

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 import { updateOutlineNodeSchema } from "@/lib/validations/outline"
 
@@ -14,7 +14,7 @@ export async function GET(
     const { novelId, nodeId } = await params
 
     // 验证小说归属
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -23,7 +23,7 @@ export async function GET(
     }
 
     // 获取节点
-    const node = await prisma.outlineNode.findUnique({
+    const node = await db.outlineNode.findUnique({
       where: { id: nodeId, novelId },
       include: {
         children: {
@@ -54,7 +54,7 @@ export async function PUT(
     const body = await request.json()
 
     // 验证小说归属
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -63,7 +63,7 @@ export async function PUT(
     }
 
     // 验证节点存在
-    const existingNode = await prisma.outlineNode.findUnique({
+    const existingNode = await db.outlineNode.findUnique({
       where: { id: nodeId, novelId },
     })
 
@@ -81,7 +81,7 @@ export async function PUT(
       }
 
       if (validatedData.parentId) {
-        const parent = await prisma.outlineNode.findUnique({
+        const parent = await db.outlineNode.findUnique({
           where: { id: validatedData.parentId, novelId },
         })
         if (!parent) {
@@ -98,7 +98,7 @@ export async function PUT(
 
     // 如果是章纲，验证关联的章节存在
     if (existingNode.type === "chapter_outline" && validatedData.linkedChapterId) {
-      const chapter = await prisma.chapter.findUnique({
+      const chapter = await db.chapter.findUnique({
         where: { id: validatedData.linkedChapterId, novelId },
       })
       if (!chapter) {
@@ -107,7 +107,7 @@ export async function PUT(
     }
 
     // 更新节点
-    const updatedNode = await prisma.outlineNode.update({
+    const updatedNode = await db.outlineNode.update({
       where: { id: nodeId },
       data: {
         ...(validatedData.title !== undefined && { title: validatedData.title }),
@@ -140,7 +140,7 @@ export async function DELETE(
     const { novelId, nodeId } = await params
 
     // 验证小说归属
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -149,7 +149,7 @@ export async function DELETE(
     }
 
     // 验证节点存在
-    const node = await prisma.outlineNode.findUnique({
+    const node = await db.outlineNode.findUnique({
       where: { id: nodeId, novelId },
     })
 
@@ -158,7 +158,7 @@ export async function DELETE(
     }
 
     // 删除节点 (子节点会级联删除)
-    await prisma.outlineNode.delete({
+    await db.outlineNode.delete({
       where: { id: nodeId },
     })
 
@@ -171,7 +171,7 @@ export async function DELETE(
 
 // 检查 targetId 是否是 nodeId 的子孙节点
 async function checkIsDescendant(nodeId: string, targetId: string): Promise<boolean> {
-  const children = await prisma.outlineNode.findMany({
+  const children = await db.outlineNode.findMany({
     where: { parentId: nodeId },
     select: { id: true },
   })

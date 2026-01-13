@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { User, BookOpen, Pin, Trash2, X, Plus, Brain, Loader2 } from "lucide-react";
+import { User, BookOpen, Pin, Trash2, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, CardCategory, CharacterAttributes } from "@/hooks/use-cards";
 
@@ -228,33 +228,6 @@ export function CardEditor({
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Embedding 状态指示器 */}
-          {!isNew && (
-            <div
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs",
-                card?.hasEmbedding
-                  ? "bg-purple-50 text-purple-600"
-                  : saveStatus === "saving"
-                  ? "bg-gray-100 text-gray-400"
-                  : "bg-amber-50 text-amber-600"
-              )}
-              title={
-                card?.hasEmbedding
-                  ? "已启用语义检索"
-                  : saveStatus === "saving"
-                  ? "正在生成向量..."
-                  : "向量生成中，保存后自动完成"
-              }
-            >
-              {saveStatus === "saving" ? (
-                <Loader2 className="size-3 animate-spin" />
-              ) : (
-                <Brain className="size-3" />
-              )}
-              <span>{card?.hasEmbedding ? "语义" : "待索引"}</span>
-            </div>
-          )}
           {/* 保存状态 */}
           <span
             className={cn(

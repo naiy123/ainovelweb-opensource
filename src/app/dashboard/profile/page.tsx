@@ -2,39 +2,26 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { signOut } from "next-auth/react"
 import { toast } from "sonner"
 import {
   ArrowLeft,
-  Phone,
-  Crown,
   BookOpen,
-  Sparkles,
   Calendar,
-  LogOut,
   Pencil,
   Check,
   X,
-  ChevronRight,
   Hash,
   Copy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useUserStore } from "@/stores/user-store"
-import { useContactAdminStore } from "@/components/contact-admin-modal"
 
 interface UserProfile {
   id: string
   shortId: number
-  phone: string
   nickname: string | null
   createdAt: string
-  creditBalance: number
-  subscription: {
-    plan: string
-    expiresAt: string | null
-  } | null
   _count: {
     novels: number
   }
@@ -48,7 +35,6 @@ export default function ProfilePage() {
   const [nickname, setNickname] = useState("")
   const [saving, setSaving] = useState(false)
   const { updateNickname: updateGlobalNickname } = useUserStore()
-  const openContactAdmin = useContactAdminStore((state) => state.openContactAdmin)
 
   useEffect(() => {
     fetchProfile()
@@ -87,7 +73,7 @@ export default function ProfilePage() {
       if (res.ok) {
         const data = await res.json()
         setProfile((prev) => (prev ? { ...prev, nickname: data.nickname } : null))
-        updateGlobalNickname(data.nickname) // 同步更新全局 store
+        updateGlobalNickname(data.nickname)
         setEditing(false)
         toast.success("昵称已更新")
       } else {
@@ -101,26 +87,12 @@ export default function ProfilePage() {
     }
   }
 
-  const handleLogout = async () => {
-    await signOut({ callbackUrl: "/login" })
-  }
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("zh-CN", {
       year: "numeric",
       month: "long",
       day: "numeric",
     })
-  }
-
-  const getPlanName = (plan: string) => {
-    const plans: Record<string, string> = {
-      free: "免费版",
-      gold: "黄金会员",
-      platinum: "铂金会员",
-      black: "黑金会员",
-    }
-    return plans[plan] || plan
   }
 
   if (loading) {
@@ -235,56 +207,10 @@ export default function ProfilePage() {
               复制
             </Button>
           </div>
-          <p className="mt-2 text-xs text-gray-400">
-            联系客服时请提供此 ID
-          </p>
         </div>
 
         {/* Info List */}
         <div className="rounded-xl border border-gray-200 bg-white">
-          {/* Phone */}
-          <div className="flex items-center gap-4 border-b border-gray-100 px-6 py-4">
-            <Phone className="size-5 text-gray-400" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-500">手机号</p>
-              <p className="text-base text-gray-900">{profile.phone || "未绑定"}</p>
-            </div>
-          </div>
-
-          {/* Subscription */}
-          <button
-            onClick={() => openContactAdmin("如需升级会员或充值灵感点，请联系管理员")}
-            className="flex w-full items-center gap-4 border-b border-gray-100 px-6 py-4 text-left transition-colors hover:bg-gray-50"
-          >
-            <Crown className="size-5 text-amber-500" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-500">订阅计划</p>
-              <p className="text-base text-gray-900">
-                {getPlanName(profile.subscription?.plan || "free")}
-                {profile.subscription?.expiresAt && (
-                  <span className="ml-2 text-sm text-gray-500">
-                    (到期: {formatDate(profile.subscription.expiresAt)})
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 text-sm font-medium text-blue-600">
-              联系管理员
-              <ChevronRight className="size-4" />
-            </div>
-          </button>
-
-          {/* Credit Balance */}
-          <div className="flex items-center gap-4 border-b border-gray-100 px-6 py-4">
-            <Sparkles className="size-5 text-amber-500" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-500">灵感点余额</p>
-              <p className="text-base text-gray-900">
-                {profile.creditBalance} 点
-              </p>
-            </div>
-          </div>
-
           {/* Novels Count */}
           <div className="flex items-center gap-4 border-b border-gray-100 px-6 py-4">
             <BookOpen className="size-5 text-gray-400" />
@@ -298,23 +224,17 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4 px-6 py-4">
             <Calendar className="size-5 text-gray-400" />
             <div className="flex-1">
-              <p className="text-sm text-gray-500">注册时间</p>
+              <p className="text-sm text-gray-500">创建时间</p>
               <p className="text-base text-gray-900">{formatDate(profile.createdAt)}</p>
             </div>
           </div>
         </div>
 
-        {/* Logout Button */}
-        <Button
-          variant="outline"
-          className="w-full justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-          onClick={handleLogout}
-        >
-          <LogOut className="size-4" />
-          退出登录
-        </Button>
+        {/* Version Info */}
+        <div className="text-center text-sm text-gray-400">
+          本地版本 · 无需登录
+        </div>
       </div>
-
     </div>
   )
 }

@@ -38,7 +38,6 @@ export interface Card {
   sortOrder: number
   isPinned: boolean
   attributes: CharacterAttributes | Record<string, unknown> | null
-  hasEmbedding?: boolean  // 是否已生成语义向量
   createdAt: string
   updatedAt: string
 }

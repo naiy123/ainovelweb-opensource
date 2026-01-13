@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
 import type { Prisma } from "@prisma/client"
 import { requireUserId } from "@/lib/auth/get-user"
-import { embeddingService } from "@/lib/ai/embedding"
 
 // 卡片分类（不导出常量，避免 Next.js 路由文件限制）
 const CARD_CATEGORIES = ["character", "term", "item", "skill", "location", "faction", "event"] as const
@@ -43,7 +42,7 @@ export async function GET(
     const category = searchParams.get("category")
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -51,52 +50,22 @@ export async function GET(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    // 使用原始 SQL 查询以获取 embedding 状态
-    const cards = await prisma.$queryRawUnsafe<Array<{
-      id: string
-      novel_id: string
-      name: string
-      category: string
-      description: string | null
-      avatar: string | null
-      tags: string | null
-      triggers: string[]
-      sort_order: number
-      is_pinned: boolean
-      attributes: unknown
-      has_embedding: boolean
-      created_at: Date
-      updated_at: Date
-    }>>(`
-      SELECT
-        id, novel_id, name, category, description, avatar, tags, triggers,
-        sort_order, is_pinned, attributes,
-        embedding IS NOT NULL as has_embedding,
-        created_at, updated_at
-      FROM cards
-      WHERE novel_id = $1 ${category ? 'AND category = $2' : ''}
-      ORDER BY is_pinned DESC, sort_order ASC, created_at ASC
-    `, novelId, ...(category ? [category] : []))
+    // 查询卡片列表
+    const whereCondition: { novelId: string; category?: string } = { novelId }
+    if (category) {
+      whereCondition.category = category
+    }
 
-    // 转换字段名为 camelCase
-    const formattedCards = cards.map(card => ({
-      id: card.id,
-      novelId: card.novel_id,
-      name: card.name,
-      category: card.category,
-      description: card.description,
-      avatar: card.avatar,
-      tags: card.tags,
-      triggers: card.triggers || [],
-      sortOrder: card.sort_order,
-      isPinned: card.is_pinned,
-      attributes: card.attributes,
-      hasEmbedding: card.has_embedding,
-      createdAt: card.created_at,
-      updatedAt: card.updated_at,
-    }))
+    const cards = await db.card.findMany({
+      where: whereCondition,
+      orderBy: [
+        { isPinned: "desc" },
+        { sortOrder: "asc" },
+        { createdAt: "asc" },
+      ],
+    })
 
-    return NextResponse.json(formattedCards)
+    return NextResponse.json(cards)
   } catch (error) {
     console.error("Get cards error:", error)
     return NextResponse.json({ error: "获取卡片列表失败" }, { status: 500 })
@@ -116,7 +85,7 @@ export async function POST(
     const validatedData = createCardSchema.parse(body)
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -125,12 +94,12 @@ export async function POST(
     }
 
     // 获取当前分类的最大 sortOrder
-    const maxSortOrder = await prisma.card.aggregate({
+    const maxSortOrder = await db.card.aggregate({
       where: { novelId, category: validatedData.category },
       _max: { sortOrder: true },
     })
 
-    const card = await prisma.card.create({
+    const card = await db.card.create({
       data: {
         novelId,
         name: validatedData.name,
@@ -142,11 +111,6 @@ export async function POST(
         sortOrder: (maxSortOrder._max.sortOrder || 0) + 1,
         attributes: validatedData.attributes as Prisma.InputJsonValue | undefined,
       },
-    })
-
-    // 异步生成 embedding（不阻塞响应）
-    embeddingService.updateCardEmbedding(card.id).catch(err => {
-      console.error("生成卡片 embedding 失败:", err)
     })
 
     return NextResponse.json(card, { status: 201 })

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { Card, CharacterAttributes } from "@/hooks/use-cards"
 import { DEFAULT_MODEL_ID } from "@/lib/ai/models"
-import { useUserStore } from "@/stores/user-store"
 import type { ChapterInfo, CharacterCardInfo, TermCardInfo, LinkedChapterInfo } from "../types"
 
 interface UseAIWritingFormOptions {
@@ -53,8 +52,8 @@ export function useAIWritingForm({
   // 浮窗展开状态
   const [isExpanded, setIsExpanded] = useState(false)
 
-  // 从全局 store 获取余额
-  const balance = useUserStore((state) => state.profile?.creditBalance ?? null)
+  // 本地版本不需要余额管理
+  const balance = null
 
   // 自动滚动思考区域
   useEffect(() => {

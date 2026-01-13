@@ -34,9 +34,6 @@ export const generateChapterSchema = z.object({
   characterRelations: z.string().optional(),
   // 关联章节（提供上下文）
   linkedChapters: z.array(linkedChapterSchema).optional(),
-  // 排除的语义匹配 ID（用户手动移除的）
-  excludedCardIds: z.array(z.string()).optional(),
-  excludedSummaryIds: z.array(z.string()).optional(),
 })
 
 export const updateChapterSchema = z.object({

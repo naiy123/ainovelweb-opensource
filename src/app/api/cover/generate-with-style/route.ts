@@ -6,7 +6,6 @@ import { withCredits, getCreditsErrorStatus } from "@/lib/credits"
 import { IMAGE_CREDITS } from "@/lib/pricing/credits"
 import { rateLimit } from "@/lib/rate-limit"
 import { sanitizePromptInput, validateOrigin, csrfErrorResponse } from "@/lib/security"
-import { getAccessibleImageUrl, isOSSConfigured } from "@/lib/aliyun-oss"
 
 // POST /api/cover/generate-with-style - 使用背景图+字体风格参考图生成封面
 export async function POST(request: NextRequest) {
@@ -133,14 +132,9 @@ ${sanitizedDescription ? `- The cover should reflect the atmosphere and style de
               author,
             })
 
-            // 转换为可访问的URL
-            const accessibleUrl = isOSSConfigured()
-              ? getAccessibleImageUrl(saved.imageUrl)
-              : saved.imageUrl
-
             return {
               imageBase64: base64Data,
-              imageUrl: accessibleUrl,
+              imageUrl: saved.imageUrl,
               id: saved.id,
             }
           }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { createNovelSchema } from "@/lib/validations/novel"
 import { ZodError } from "zod"
 import { createNovelCreatedActivity } from "@/lib/services/activity"
@@ -9,7 +9,7 @@ import { requireUserId } from "@/lib/auth/get-user"
 export async function GET() {
   try {
     const userId = await requireUserId()
-    const novels = await prisma.novel.findMany({
+    const novels = await db.novel.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
       include: {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createNovelSchema.parse(body)
 
     // 使用事务同时创建小说和第一章
-    const novel = await prisma.novel.create({
+    const novel = await db.novel.create({
       data: {
         userId,
         title: validatedData.title,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
 import { requireUserId } from "@/lib/auth/get-user"
@@ -20,7 +20,7 @@ export async function GET(
     const { novelId } = await params
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    const chapters = await prisma.chapter.findMany({
+    const chapters = await db.chapter.findMany({
       where: { novelId },
       orderBy: { number: "asc" },
     })
@@ -53,7 +53,7 @@ export async function POST(
     const validatedData = createChapterSchema.parse(body)
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -62,7 +62,7 @@ export async function POST(
     }
 
     // 根据 status 计算新章节序号（published 和 draft 分开排序）
-    const lastChapter = await prisma.chapter.findFirst({
+    const lastChapter = await db.chapter.findFirst({
       where: { novelId, status: validatedData.status },
       orderBy: { number: "desc" },
     })
@@ -72,7 +72,7 @@ export async function POST(
     const wordCount = validatedData.content.replace(/<[^>]*>/g, "").replace(/\s/g, "").length
 
     // 创建章节
-    const chapter = await prisma.chapter.create({
+    const chapter = await db.chapter.create({
       data: {
         novelId,
         number: nextNumber,
@@ -85,7 +85,7 @@ export async function POST(
 
     // 只有 published 章节才计入总字数
     if (wordCount > 0 && validatedData.status === "published") {
-      await prisma.novel.update({
+      await db.novel.update({
         where: { id: novelId },
         data: {
           totalWords: { increment: wordCount },

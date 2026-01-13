@@ -19,7 +19,7 @@ export function CoverGenerator() {
     isGeneratingQuick, quickModel, backgroundImage,
     resultImage, isGeneratingFinal,
     historyImages, historyLoading, historyNextCursor, historyHasMore,
-    previewImage, historyExpanded, userBalance, selectedModelConfig,
+    previewImage, historyExpanded, selectedModelConfig,
     // Setters
     setGenerateMode, setTitle, setAuthor, setGenre, setDescription,
     setQuickModel, setPreviewImage, setHistoryExpanded,
@@ -36,7 +36,6 @@ export function CoverGenerator() {
       <Header
         step={step}
         generateMode={generateMode}
-        userBalance={userBalance}
       />
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">

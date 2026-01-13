@@ -1,8 +1,7 @@
 import { writeFile, mkdir } from "fs/promises"
 import { existsSync } from "fs"
 import path from "path"
-import { prisma } from "@/lib/db"
-import { isOSSConfigured, uploadImageToOSS } from "@/lib/aliyun-oss"
+import { db } from "@/lib/db"
 
 interface SaveImageOptions {
   userId: string
@@ -14,8 +13,7 @@ interface SaveImageOptions {
 }
 
 /**
- * 保存生成的图片到OSS或本地文件系统，并记录到数据库
- * 优先使用OSS存储，如果OSS未配置则降级到本地存储
+ * 保存生成的图片到本地文件系统，并记录到数据库
  */
 export async function saveGeneratedImage(options: SaveImageOptions) {
   const { userId, type, imageBase64, title, author, prompt } = options
@@ -26,27 +24,11 @@ export async function saveGeneratedImage(options: SaveImageOptions) {
   const filename = `${type}_${timestamp}_${randomStr}.png`
   const imageBuffer = Buffer.from(imageBase64, "base64")
 
-  let imageUrl: string
-
-  // 优先使用OSS存储
-  if (isOSSConfigured()) {
-    try {
-      // 上传到OSS，按类型分文件夹
-      const folder = type === "cover" ? "covers" : "backgrounds"
-      imageUrl = await uploadImageToOSS(imageBuffer, filename, folder)
-      console.log(`✅ 图片已上传到OSS: ${imageUrl}`)
-    } catch (error) {
-      console.error("OSS上传失败，降级到本地存储:", error)
-      // OSS失败时降级到本地存储
-      imageUrl = await saveToLocalFile(imageBuffer, filename)
-    }
-  } else {
-    // OSS未配置，使用本地存储
-    imageUrl = await saveToLocalFile(imageBuffer, filename)
-  }
+  // 保存到本地文件系统
+  const imageUrl = await saveToLocalFile(imageBuffer, filename)
 
   // 保存到数据库
-  const record = await prisma.generatedImage.create({
+  const record = await db.generatedImage.create({
     data: {
       userId,
       type,
@@ -57,7 +39,7 @@ export async function saveGeneratedImage(options: SaveImageOptions) {
     },
   })
 
-  console.log(`✅ 图片记录已保存: ${imageUrl} (ID: ${record.id})`)
+  console.log(`✅ 图片已保存: ${imageUrl} (ID: ${record.id})`)
 
   return {
     id: record.id,
@@ -66,7 +48,7 @@ export async function saveGeneratedImage(options: SaveImageOptions) {
 }
 
 /**
- * 保存图片到本地文件系统（降级方案）
+ * 保存图片到本地文件系统
  */
 async function saveToLocalFile(imageBuffer: Buffer, filename: string): Promise<string> {
   const uploadDir = path.join(process.cwd(), "public", "generated")

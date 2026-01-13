@@ -15,7 +15,6 @@ import { useContactAdminStore } from "@/components/contact-admin-modal"
 
 export function useCoverGenerator() {
   const refreshBalance = useUserStore((state) => state.refreshBalance)
-  const userBalance = useUserStore((state) => state.profile?.creditBalance ?? null)
   const openContactAdmin = useContactAdminStore((state) => state.openContactAdmin)
 
   // 处理错误，检查是否是灵感点不足
@@ -242,7 +241,7 @@ export function useCoverGenerator() {
     isGeneratingQuick, quickModel, bgMode, backgroundImage, aiPrompt,
     isGeneratingBg, styleImage, resultImage, isGeneratingFinal,
     historyImages, historyLoading, historyNextCursor, historyHasMore,
-    previewImage, historyExpanded, userBalance, selectedModelConfig,
+    previewImage, historyExpanded, selectedModelConfig,
     // Refs
     bgInputRef, styleInputRef,
     // Setters

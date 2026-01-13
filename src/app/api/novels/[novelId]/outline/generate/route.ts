@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
 import { generateOutline } from "@/lib/ai/outline"
@@ -61,7 +61,7 @@ export async function POST(
     const requiredCredits = modelConfig.credits
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -72,7 +72,7 @@ export async function POST(
     // 获取父节点上下文（如果有）
     let parentNode: { title: string; content?: string; type: string } | undefined
     if (validatedData.parentNodeId) {
-      const parent = await prisma.outlineNode.findUnique({
+      const parent = await db.outlineNode.findUnique({
         where: { id: validatedData.parentNodeId, novelId },
       })
       if (parent) {

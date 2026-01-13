@@ -5,8 +5,7 @@ import { saveGeneratedImage } from "@/lib/ai/save-image"
 import { withCredits, getCreditsErrorStatus } from "@/lib/credits"
 import { IMAGE_CREDITS } from "@/lib/pricing/credits"
 import { rateLimit } from "@/lib/rate-limit"
-import { sanitizePromptInput, validateOrigin, csrfErrorResponse, getClientIP } from "@/lib/security"
-import { getAccessibleImageUrl, isOSSConfigured } from "@/lib/aliyun-oss"
+import { sanitizePromptInput, validateOrigin, csrfErrorResponse } from "@/lib/security"
 
 // POST /api/cover/generate-background - 生成背景图
 export async function POST(request: NextRequest) {
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
       Do NOT include any text on the image.
     `
 
-    // 使用 withCredits 统一处理扣费逻辑
+    // 使用 withCredits 统一处理（本地版本不扣费）
     const result = await withCredits(
       {
         userId,
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
           if (part.inlineData) {
             const imageBase64 = part.inlineData.data as string
 
-            // 保存到文件和数据库
+            // 保存到本地文件和数据库
             const saved = await saveGeneratedImage({
               userId,
               type: "background",
@@ -92,15 +91,10 @@ export async function POST(request: NextRequest) {
               prompt: synopsis,
             })
 
-            // 转换为可访问的URL
-            const accessibleUrl = isOSSConfigured()
-              ? getAccessibleImageUrl(saved.imageUrl)
-              : saved.imageUrl
-
             return {
               imageBase64,
               mimeType: part.inlineData.mimeType || "image/png",
-              imageUrl: accessibleUrl,
+              imageUrl: saved.imageUrl,
               id: saved.id,
             }
           }

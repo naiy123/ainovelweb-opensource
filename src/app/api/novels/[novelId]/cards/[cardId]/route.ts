@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
 import { requireUserId } from "@/lib/auth/get-user"
-import { embeddingService } from "@/lib/ai/embedding"
 
 const CARD_CATEGORIES = ["character", "term", "item", "skill", "location", "faction", "event"] as const
 
@@ -29,7 +28,7 @@ export async function GET(
     const { novelId, cardId } = await params
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -37,7 +36,7 @@ export async function GET(
       return NextResponse.json({ error: "小说不存在" }, { status: 404 })
     }
 
-    const card = await prisma.card.findUnique({
+    const card = await db.card.findUnique({
       where: { id: cardId, novelId },
     })
 
@@ -65,7 +64,7 @@ export async function PUT(
     const validatedData = updateCardSchema.parse(body)
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -74,7 +73,7 @@ export async function PUT(
     }
 
     // 检查卡片是否存在
-    const existingCard = await prisma.card.findUnique({
+    const existingCard = await db.card.findUnique({
       where: { id: cardId, novelId },
     })
 
@@ -95,17 +94,10 @@ export async function PUT(
       updateData.attributes = validatedData.attributes === null ? undefined : validatedData.attributes
     }
 
-    const card = await prisma.card.update({
+    const card = await db.card.update({
       where: { id: cardId },
       data: updateData,
     })
-
-    // 异步更新 embedding（不阻塞响应）
-    if (validatedData.name !== undefined || validatedData.description !== undefined || validatedData.tags !== undefined) {
-      embeddingService.updateCardEmbedding(cardId).catch(err => {
-        console.error("更新卡片 embedding 失败:", err)
-      })
-    }
 
     return NextResponse.json(card)
   } catch (error) {
@@ -129,7 +121,7 @@ export async function DELETE(
     const { novelId, cardId } = await params
 
     // 验证小说属于当前用户
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -138,7 +130,7 @@ export async function DELETE(
     }
 
     // 检查卡片是否存在
-    const existingCard = await prisma.card.findUnique({
+    const existingCard = await db.card.findUnique({
       where: { id: cardId, novelId },
     })
 
@@ -146,7 +138,7 @@ export async function DELETE(
       return NextResponse.json({ error: "卡片不存在" }, { status: 404 })
     }
 
-    await prisma.card.delete({
+    await db.card.delete({
       where: { id: cardId },
     })
 

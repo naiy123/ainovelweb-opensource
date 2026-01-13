@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
-import { getAccessibleImageUrl, isOSSConfigured } from "@/lib/aliyun-oss"
 
 // GET /api/cover/history - 获取生成历史
 export async function GET(request: NextRequest) {
@@ -18,7 +17,7 @@ export async function GET(request: NextRequest) {
       where.type = type
     }
 
-    const images = await prisma.generatedImage.findMany({
+    const images = await db.generatedImage.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: limit + 1, // 多取一条用于判断是否有更多
@@ -43,16 +42,8 @@ export async function GET(request: NextRequest) {
       nextCursor = nextItem!.id
     }
 
-    // 转换OSS路径为可访问的签名URL
-    const imagesWithAccessibleUrls = images.map(image => ({
-      ...image,
-      imageUrl: isOSSConfigured()
-        ? getAccessibleImageUrl(image.imageUrl)
-        : image.imageUrl,
-    }))
-
     return NextResponse.json({
-      images: imagesWithAccessibleUrls,
+      images,
       nextCursor,
       hasMore: nextCursor !== null,
     })

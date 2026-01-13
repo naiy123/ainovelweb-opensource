@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import type { GeneratedCharacter, GeneratedTerm } from "@/lib/ai";
 import { Sparkles } from "lucide-react";
-import { EmbeddingManager } from "./embedding-manager";
 
 // 风格选项
 const STYLE_OPTIONS = [
@@ -354,9 +353,6 @@ export function SettingsAssistantPanel({
           )}
         </div>
       </div>
-
-      {/* Embedding 管理区域 */}
-      <EmbeddingManager novelId={novelId} />
     </aside>
   );
 }

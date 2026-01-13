@@ -1,4 +1,4 @@
-export { Header } from "./Header"
+export { Header } from "./header"
 export { ModeSelector } from "./ModeSelector"
 export { ModelSelector } from "./ModelSelector"
 export { BookInfoForm } from "./BookInfoForm"

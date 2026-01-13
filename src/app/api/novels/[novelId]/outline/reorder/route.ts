@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 import { reorderOutlineNodesSchema } from "@/lib/validations/outline"
 
@@ -15,7 +15,7 @@ export async function PATCH(
     const body = await request.json()
 
     // 验证小说归属
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
     })
 
@@ -28,7 +28,7 @@ export async function PATCH(
 
     // 验证所有节点都属于这本小说
     const nodeIds = validatedData.updates.map((u) => u.id)
-    const existingNodes = await prisma.outlineNode.findMany({
+    const existingNodes = await db.outlineNode.findMany({
       where: { id: { in: nodeIds }, novelId },
       select: { id: true },
     })
@@ -38,9 +38,9 @@ export async function PATCH(
     }
 
     // 批量更新
-    await prisma.$transaction(
+    await db.$transaction(
       validatedData.updates.map((update) =>
-        prisma.outlineNode.update({
+        db.outlineNode.update({
           where: { id: update.id },
           data: {
             sortOrder: update.sortOrder,

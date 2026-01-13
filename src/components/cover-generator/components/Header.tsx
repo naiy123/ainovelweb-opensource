@@ -1,15 +1,14 @@
 "use client"
 
-import { Coins, Image as ImageIcon } from "lucide-react"
+import { Image as ImageIcon } from "lucide-react"
 import type { Step, GenerateMode } from "../types"
 
 interface HeaderProps {
   step: Step
   generateMode: GenerateMode
-  userBalance: number | null
 }
 
-export function Header({ step, generateMode, userBalance }: HeaderProps) {
+export function Header({ step, generateMode }: HeaderProps) {
   return (
     <header className="glass-panel-dark border-b border-white/5 px-8 py-4 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center gap-3">
@@ -22,12 +21,7 @@ export function Header({ step, generateMode, userBalance }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/20 rounded-full px-4 py-1.5">
-        <Coins className="w-4 h-4 text-amber-400" />
-        <span className="text-sm font-medium text-amber-300">
-          {userBalance !== null ? <>{userBalance} 灵感点</> : "--"}
-        </span>
-      </div>
+      {/* 本地版本 - 移除了灵感点显示 */}
 
       {generateMode === "advanced" && (
         <div className="hidden md:flex items-center gap-1 text-xs font-medium bg-black/20 rounded-full p-1 px-2 border border-white/5">

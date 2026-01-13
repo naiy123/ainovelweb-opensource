@@ -1,52 +1,32 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
-import { getBalance } from "@/lib/credits/service"
 
 // GET /api/user/profile - 获取用户个人信息
 export async function GET() {
   try {
     const userId = await requireUserId()
 
-    const [user, creditBalance] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          shortId: true,
-          phone: true,
-          nickname: true,
-          createdAt: true,
-          subscription: {
-            select: {
-              plan: true,
-              expiresAt: true,
-            },
-          },
-          _count: {
-            select: {
-              novels: true,
-            },
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        shortId: true,
+        nickname: true,
+        createdAt: true,
+        _count: {
+          select: {
+            novels: true,
           },
         },
-      }),
-      getBalance(userId),
-    ])
+      },
+    })
 
     if (!user) {
       return NextResponse.json({ error: "用户不存在" }, { status: 404 })
     }
 
-    // 脱敏处理手机号
-    const maskedPhone = user.phone
-      ? user.phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2")
-      : null
-
-    return NextResponse.json({
-      ...user,
-      phone: maskedPhone,
-      creditBalance,
-    })
+    return NextResponse.json(user)
   } catch (error) {
     console.error("Get profile error:", error)
     return NextResponse.json({ error: "获取用户信息失败" }, { status: 500 })
@@ -69,7 +49,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "昵称不能超过20个字符" }, { status: 400 })
     }
 
-    const user = await prisma.user.update({
+    const user = await db.user.update({
       where: { id: userId },
       data: { nickname: nickname.trim() },
       select: {

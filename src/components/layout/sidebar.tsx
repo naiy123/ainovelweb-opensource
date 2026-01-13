@@ -12,11 +12,10 @@ import {
   ImageIcon,
   MessageSquareText,
   ChevronRight,
-  Sparkles,
   Bird,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUserStore, useUserDisplayName, useUserPlanName } from "@/stores/user-store";
+import { useUserDisplayName, useUserPlanName } from "@/stores/user-store";
 
 const navItems = [
   { name: "创意", href: "/dashboard", icon: Lightbulb, ready: true },
@@ -31,7 +30,6 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const profile = useUserStore((state) => state.profile);
   const displayName = useUserDisplayName();
   const planName = useUserPlanName();
   const avatarLetter = displayName.charAt(0).toUpperCase();
@@ -100,12 +98,7 @@ export function Sidebar() {
           </div>
           <div className="flex flex-1 flex-col">
             <span className="text-sm font-medium text-[#364153]">{displayName}</span>
-            <div className="flex items-center gap-1.5 text-xs text-[#6a7282]">
-              <span>{planName}</span>
-              <span className="text-gray-300">·</span>
-              <Sparkles className="size-3 text-amber-500" />
-              <span>{profile?.creditBalance ?? 0}</span>
-            </div>
+            <span className="text-xs text-[#6a7282]">{planName}</span>
           </div>
           <ChevronRight className="size-4 text-[#6a7282]" />
         </Link>

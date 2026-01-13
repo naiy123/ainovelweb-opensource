@@ -7,7 +7,6 @@ import { rateLimit } from "@/lib/rate-limit"
 import { sanitizePromptInput, validateOrigin, csrfErrorResponse } from "@/lib/security"
 import { generateCoverImage } from "@/lib/ai/cover"
 import { generateCoverImageStylist } from "@/lib/ai/cover-stylist"
-import { getAccessibleImageUrl, isOSSConfigured } from "@/lib/aliyun-oss"
 
 // 模型类型映射
 type QuickModel = "designer" | "stylist"
@@ -108,14 +107,9 @@ export async function POST(request: NextRequest) {
           author: sanitizedAuthor,
         })
 
-        // 转换为可访问的URL
-        const accessibleUrl = isOSSConfigured()
-          ? getAccessibleImageUrl(saved.imageUrl)
-          : saved.imageUrl
-
         return {
           imageBase64: generated.imageBase64,
-          imageUrl: accessibleUrl,
+          imageUrl: saved.imageUrl,
           id: saved.id,
         }
       }

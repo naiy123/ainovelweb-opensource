@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 
 // GET /api/dashboard/stats - 获取本周统计数据
@@ -16,14 +16,14 @@ export async function GET() {
     weekStart.setHours(0, 0, 0, 0)
 
     // 获取用户所有小说的总字数
-    const novels = await prisma.novel.findMany({
+    const novels = await db.novel.findMany({
       where: { userId },
       select: { totalWords: true },
     })
     const totalWords = novels.reduce((sum, novel) => sum + novel.totalWords, 0)
 
     // 计算本周创作天数（通过章节更新时间）
-    const chaptersThisWeek = await prisma.chapter.findMany({
+    const chaptersThisWeek = await db.chapter.findMany({
       where: {
         novel: { userId },
         updatedAt: { gte: weekStart },

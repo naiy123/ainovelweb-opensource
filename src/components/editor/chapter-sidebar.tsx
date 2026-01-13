@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import type { Card, CardCategory } from "@/hooks/use-cards";
 import type { OutlineNode } from "@/hooks/use-outline";
 import { OutlineTree } from "./outline";
-import { EmbeddingManager } from "./embedding-manager";
 
 interface Chapter {
   id: string;
@@ -231,8 +230,6 @@ export function ChapterSidebar({
               {/* 设定分类 - 显示角色和词条子分类 */}
               {isExpanded && isSettingsGroup && (
                 <div className="ml-4 space-y-0.5">
-                  {/* 语义索引状态 */}
-                  <EmbeddingManager novelId={novelId} compact />
                   {SETTINGS_CATEGORIES.map((category) => {
                     const isSettingExpanded = expandedSettings.has(category.id);
                     const categoryCards = cardsByCategory[category.id] || [];

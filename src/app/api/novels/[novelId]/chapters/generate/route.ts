@@ -4,13 +4,12 @@ import { buildChapterSystemPrompt, buildChapterUserPrompt, type MatchedCard, typ
 import { generateChapterSchema } from "@/lib/validations/chapter"
 import { ZodError } from "zod"
 import { requireUserId } from "@/lib/auth/get-user"
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { rateLimit } from "@/lib/rate-limit"
 import { sanitizePromptInput, validateOrigin } from "@/lib/security"
 import { getModelConfig, calculateLinkedChaptersCredits } from "@/lib/ai/models"
 import { checkCredits, consumeCredits } from "@/lib/credits"
 import { logStreamComplete } from "@/lib/ai/logger"
-import { embeddingService } from "@/lib/ai/embedding"
 import type { CharacterAttributes } from "@/hooks/use-cards"
 
 /**
@@ -159,133 +158,59 @@ export async function POST(
     })
 
     // 获取小说摘要
-    const novel = await prisma.novel.findUnique({
+    const novel = await db.novel.findUnique({
       where: { id: novelId },
       select: { summary: true },
     })
 
-    // 用于语义检索的查询文本
+    // 用于触发词匹配的查询文本
     const searchQuery = [
       sanitizedData.chapterPlot,
       sanitizedData.storyBackground,
     ].filter(Boolean).join("\n")
 
-    // 并行执行：语义检索卡片和摘要
-    let semanticCards: Awaited<ReturnType<typeof embeddingService.searchCards>> = []
-    let semanticSummaries: Awaited<ReturnType<typeof embeddingService.searchSummaries>> = []
+    // 使用触发词匹配卡片
+    const cardsWithTriggers = await db.card.findMany({
+      where: {
+        novelId,
+        triggers: { isEmpty: false },
+      },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        description: true,
+        triggers: true,
+        attributes: true,
+      },
+    })
 
-    // 用户排除的 ID（从上下文预览中手动移除的）
-    const excludedCardIds = new Set(validatedData.excludedCardIds || [])
-    const excludedSummaryIds = new Set(validatedData.excludedSummaryIds || [])
+    const matchedCards: MatchedCard[] = matchCardsByTriggers(searchQuery, cardsWithTriggers)
 
-    if (searchQuery.length > 10) {
-      try {
-        // 语义检索（如果有 embedding）
-        const [cardsResult, summariesResult] = await Promise.allSettled([
-          embeddingService.searchCards(novelId, searchQuery, { topK: 8, threshold: 0.4 }),
-          embeddingService.searchSummaries(novelId, searchQuery, { topK: 5, threshold: 0.4 }),
-        ])
-
-        if (cardsResult.status === "fulfilled") {
-          // 过滤掉用户排除的卡片
-          semanticCards = cardsResult.value.filter(c => !excludedCardIds.has(c.id))
-        }
-        if (summariesResult.status === "fulfilled") {
-          // 过滤掉用户排除的摘要
-          semanticSummaries = summariesResult.value.filter(s => !excludedSummaryIds.has(s.id))
-        }
-      } catch (err) {
-        console.warn("语义检索失败，使用回退方案:", err)
-      }
-    }
-
-    // 获取语义检索匹配的卡片详情
-    const semanticCardIds = new Set(semanticCards.map(c => c.id))
-    let matchedCards: MatchedCard[] = semanticCards.map(c => ({
-      name: c.name,
-      category: c.category as "character" | "term",
-      description: c.description || undefined,
-    }))
-
-    // 回退：如果语义检索没有结果，使用触发词匹配
-    if (matchedCards.length === 0) {
-      const cardsWithTriggers = await prisma.card.findMany({
-        where: {
-          novelId,
-          triggers: { isEmpty: false },
+    // 获取最近的章节摘要（最多10章）
+    const chapterSummaries = await db.chapterSummary.findMany({
+      where: { novelId },
+      include: {
+        chapter: {
+          select: { title: true, createdAt: true },
         },
-        select: {
-          id: true,
-          name: true,
-          category: true,
-          description: true,
-          triggers: true,
-          attributes: true,
-        },
-      })
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    })
 
-      matchedCards = matchCardsByTriggers(searchQuery, cardsWithTriggers)
-    } else {
-      // 补充：对于语义匹配的卡片，获取完整的 attributes
-      const fullCards = await prisma.card.findMany({
-        where: { id: { in: Array.from(semanticCardIds) } },
-        select: { id: true, attributes: true },
-      })
-      const attrMap = new Map(fullCards.map(c => [c.id, c.attributes]))
-
-      matchedCards = semanticCards.map(c => {
-        const attrs = attrMap.get(c.id) as CharacterAttributes | null
-        return {
-          name: c.name,
-          category: c.category as "character" | "term",
-          description: c.description || undefined,
-          gender: attrs?.gender,
-          age: attrs?.age,
-          personality: attrs?.personality,
-          background: attrs?.background,
-          abilities: attrs?.abilities,
-        }
-      })
-    }
-
-    // 章节摘要：优先使用语义检索结果，回退到最近章节
-    let summaryInfos: ChapterSummaryInfo[] = []
-
-    if (semanticSummaries.length > 0) {
-      // 使用语义检索结果
-      summaryInfos = semanticSummaries.map(s => ({
-        title: s.chapterTitle,
+    const summaryInfos: ChapterSummaryInfo[] = chapterSummaries
+      .reverse()
+      .map(s => ({
+        title: s.chapter.title,
         summary: s.summary,
       }))
-    } else {
-      // 回退：获取最近的章节摘要（最多10章）
-      const chapterSummaries = await prisma.chapterSummary.findMany({
-        where: { novelId },
-        include: {
-          chapter: {
-            select: { title: true, createdAt: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      })
-
-      summaryInfos = chapterSummaries
-        .reverse()
-        .map(s => ({
-          title: s.chapter.title,
-          summary: s.summary,
-        }))
-    }
 
     console.log("📚 上下文注入:", {
       novelSummary: novel?.summary ? "有" : "无",
       chapterSummaries: summaryInfos.length,
       matchedCards: matchedCards.length,
       matchedCardNames: matchedCards.map(c => c.name),
-      semanticSearch: semanticCards.length > 0 || semanticSummaries.length > 0,
-      excludedCards: excludedCardIds.size,
-      excludedSummaries: excludedSummaryIds.size,
     })
 
     // 构建 Prompt
@@ -392,7 +317,7 @@ export async function POST(
           // 保存 token 统计到数据库
           if (tokenUsage) {
             try {
-              await prisma.aIGenerationLog.create({
+              await db.aIGenerationLog.create({
                 data: {
                   userId,
                   novelId,
