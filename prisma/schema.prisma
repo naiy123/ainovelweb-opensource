@@ -1,0 +1,456 @@
+// Prisma Schema for AI Novel Web
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Auth.js Models ====================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ==================== User & Subscription ====================
+
+model User {
+  id            String    @id @default(cuid())
+  shortId       Int       @unique @default(autoincrement()) @map("short_id") // 用户短 ID，用于客服/分享
+  phone         String?   @unique
+  wechatOpenid  String?   @unique @map("wechat_openid")
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  nickname      String?
+  avatar        String?
+
+  // 账号密码登录
+  username      String?   @unique                           // 登录用户名
+  passwordHash  String?   @map("password_hash")             // bcrypt 哈希密码
+  phoneVerified Boolean   @default(false) @map("phone_verified") // 手机是否已验证
+
+  // 安全字段
+  failedLoginCount Int       @default(0) @map("failed_login_count") // 连续登录失败次数
+  lockedUntil      DateTime? @map("locked_until")                   // 账户锁定截止时间
+  lastLoginAt      DateTime? @map("last_login_at")                  // 最后登录时间
+  lastLoginIp      String?   @map("last_login_ip")                  // 最后登录 IP
+
+  accounts             Account[]
+  sessions             Session[]
+  subscription         Subscription?
+  novels               Novel[]
+  transactions         Transaction[]
+  aiLogs               AIGenerationLog[]
+  activities           UserActivity[]
+  generatedImages      GeneratedImage[]
+  creditTransactions   CreditTransaction[]
+  passwordResetTokens  PasswordResetToken[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan       String   @default("free") // free, gold, platinum, black
+  dailyLimit Int      @default(3) @map("daily_limit")
+  expiresAt  DateTime? @map("expires_at") // 标准会员到期时间
+
+  // 无限畅享卡
+  unlimitedExpiresAt DateTime? @map("unlimited_expires_at") // 无限卡到期时间
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("subscriptions")
+}
+
+// ==================== Credit Transaction (灵感点流水) ====================
+
+model CreditTransaction {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 金额：正数=充值/赠送，负数=消费
+  amount      Int
+  // 操作后余额（冗余字段，方便查询）
+  balanceAfter Int @map("balance_after")
+
+  // 类型：recharge(充值), consume(消费), gift(赠送), refund(退款)
+  type        String
+  // 详细分类：subscription(订阅充值), background(背景图), cover(封面), chapter(章节)...
+  category    String?
+  // 备注/描述
+  description String?
+  // 关联的资源ID（如章节ID、图片ID）
+  refId       String? @map("ref_id")
+  // 关联的资源类型
+  refType     String? @map("ref_type")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("credit_transactions")
+}
+
+// ==================== Novel & Chapter ====================
+
+model Novel {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  coverUrl    String?  @map("cover_url")
+  status      String   @default("active") // active, archived
+  tags        String?  // comma-separated: "现代,都市,情感"
+  totalWords  Int      @default(0) @map("total_words")
+  metadata    Json?    // settings, ai params
+  summary     String?  // 全书概要，用于 AI 上下文
+
+  chapters        Chapter[]
+  cards           Card[]
+  aiLogs          AIGenerationLog[]
+  outlineNodes    OutlineNode[]
+  chapterSummaries ChapterSummary[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("novels")
+}
+
+model Chapter {
+  id      String @id @default(cuid())
+  novelId String @map("novel_id")
+  novel   Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  number      Int
+  title       String
+  content     String
+  wordCount   Int     @default(0) @map("word_count")
+  status      String  @default("published") // "published" | "draft"
+  aiGenerated Boolean @default(false) @map("ai_generated")
+  aiModel     String? @map("ai_model")
+
+  aiLogs       AIGenerationLog[]
+  outlineNodes OutlineNode[] // 关联的章纲节点
+  summary      ChapterSummary?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([novelId])
+  @@map("chapters")
+}
+
+// ==================== Chapter Summary (章节摘要) ====================
+
+model ChapterSummary {
+  id        String @id @default(cuid())
+  novelId   String @map("novel_id")
+  novel     Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterId String @unique @map("chapter_id")
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  summary    String   // 摘要内容
+  keyPoints  String[] // 关键点：["伏笔A", "角色B登场"]
+  tokenCount Int?     @map("token_count") // 预估 token 数
+  isManual   Boolean  @default(false) @map("is_manual") // 是否手动编辑过
+
+  // Embedding 向量 (pgvector)
+  // 用于语义检索相关章节
+  embedding  Unsupported("vector(3072)")?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([novelId])
+  @@map("chapter_summaries")
+}
+
+// ==================== Payment ====================
+
+model Transaction {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount     Decimal
+  method     String   // wechat, alipay
+  externalId String?  @unique @map("external_id")
+  status     String   @default("pending") // pending, success, failed, refunded
+  plan       String   // 1month, 3month, 1year
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("transactions")
+}
+
+// ==================== Card (通用卡片) ====================
+
+model Card {
+  id      String @id @default(cuid())
+  novelId String @map("novel_id")
+  novel   Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  // 通用字段 (所有卡片类型共有)
+  name        String                      // 名称
+  category    String                      // 类型: character, item, skill, location, faction, event, term
+  description String?                     // 描述
+  avatar      String?                     // 图片/头像URL
+  tags        String?                     // 标签 (逗号分隔)
+  triggers    String[]                    // 触发词数组，用于 Lorebook 自动关联
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPinned    Boolean  @default(false) @map("is_pinned")
+
+  // 扩展字段 (不同类型存储不同结构的JSON)
+  // character: { gender, age, personality, background, abilities, relations }
+  // item: { rank, effects, owner, origin }
+  // skill: { type, power, cooldown, requirements, users }
+  // location: { locationType, region, features, population }
+  // faction: { type, leader, members, territory, influence }
+  attributes  Json?
+
+  // Embedding 向量 (pgvector)
+  // 用于语义检索，由 name + description + tags 生成
+  embedding      Unsupported("vector(3072)")?
+  embeddingText  String?  @map("embedding_text")  // 用于生成 embedding 的原文
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([novelId])
+  @@index([category])
+  @@map("cards")
+}
+
+// ==================== AI Generation Log ====================
+
+model AIGenerationLog {
+  id        String  @id @default(cuid())
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novelId   String? @map("novel_id")
+  novel     Novel?  @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  chapterId String? @map("chapter_id")
+  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  // 生成参数快照
+  aiModel             String  @map("ai_model")               // 使用的AI模型
+  storyBackground     String? @map("story_background")       // 故事背景
+  chapterPlot         String? @map("chapter_plot")           // 本章剧情
+  writingStyle        String? @map("writing_style")          // 写作风格
+  writingRequirements String? @map("writing_requirements")   // 写作要求
+
+  // 关联的上下文 (存储ID列表，逗号分隔)
+  linkedCardIds       String? @map("linked_card_ids")        // 关联的卡片ID: "id1,id2,id3"
+  linkedChapterIds    String? @map("linked_chapter_ids")     // 关联的章节ID
+  autoLinkRange       Int?    @map("auto_link_range")        // 自动关联字数范围
+  characterRelations  String? @map("character_relations")    // 临时角色关系描述
+
+  // Token消耗统计
+  inputTokens    Int? @map("input_tokens")
+  outputTokens   Int? @map("output_tokens")
+  thoughtsTokens Int? @map("thoughts_tokens")
+  totalTokens    Int? @map("total_tokens")
+
+  // AI思考过程 (可选保存)
+  thinking String?
+
+  // 生成结果
+  generatedContent String? @map("generated_content")         // 生成的内容
+  isAccepted       Boolean @default(false) @map("is_accepted") // 用户是否采纳
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([novelId])
+  @@index([chapterId])
+  @@map("ai_generation_logs")
+}
+
+// ==================== Generated Image (封面/背景图生成历史) ====================
+
+model GeneratedImage {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 图片类型: background (背景图), cover (最终封面)
+  type     String
+  // 图片URL (存储在 public/generated/ 目录)
+  imageUrl String @map("image_url")
+
+  // 生成参数 (可选，用于记录)
+  title    String?  // 书名 (封面时有)
+  author   String?  // 作者 (封面时有)
+  prompt   String?  // AI提示词 (背景图时有)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("generated_images")
+}
+
+// ==================== User Activity ====================
+
+model UserActivity {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 动态类型: welcome, novel_created, chapter_completed, word_milestone, streak_achievement, ai_used, cover_generated, system_update
+  type        String
+  title       String
+  description String
+
+  // 可选关联数据 (如小说ID、章节ID等)
+  metadata    Json?
+
+  // 是否已读
+  isRead      Boolean @default(false) @map("is_read")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("user_activities")
+}
+
+// ==================== Outline (大纲系统) ====================
+
+// 大纲节点 (Novel Outline) - 全书大纲的层级结构
+// 层级约束: 卷纲(volume) > 章纲(chapter_outline) > 情节点(plot_point)
+model OutlineNode {
+  id      String @id @default(cuid())
+  novelId String @map("novel_id")
+  novel   Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  // 自引用实现层级结构
+  parentId String?       @map("parent_id")
+  parent   OutlineNode?  @relation("OutlineHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children OutlineNode[] @relation("OutlineHierarchy")
+
+  // 章纲可以关联到具体章节
+  linkedChapterId String?  @map("linked_chapter_id")
+  linkedChapter   Chapter? @relation(fields: [linkedChapterId], references: [id], onDelete: SetNull)
+
+  title     String
+  content   String? // 详细描述
+  type      String  // 'volume' | 'chapter_outline' | 'plot_point'
+  sortOrder Int     @default(0) @map("sort_order")
+  completed Boolean @default(false) // 情节点完成状态
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([novelId])
+  @@index([parentId])
+  @@index([linkedChapterId])
+  @@map("outline_nodes")
+}
+
+// ==================== Password Reset Token ====================
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String    @unique          // 存储 hash 后的 token
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// ==================== Security Audit Log ====================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+
+  // 事件信息
+  eventType String   @map("event_type")  // auth.login.success, security.csrf.blocked, etc.
+  severity  String   @default("info")    // info, warning, error, critical
+  success   Boolean  @default(true)
+
+  // 用户信息（可能为空，如未登录时的攻击）
+  userId    String?  @map("user_id")
+  username  String?
+
+  // 请求信息
+  ip        String
+  userAgent String?  @map("user_agent")
+
+  // 详细信息
+  details   Json?    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([severity])
+  @@index([userId])
+  @@index([ip])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
