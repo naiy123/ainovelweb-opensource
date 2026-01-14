@@ -105,3 +105,6 @@ tmpclaude-*
 .claude/
 prisma/data.db
 dist-electron/
+
+# Terminal Paste Image folder
+.cp-images/

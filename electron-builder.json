@@ -21,8 +21,13 @@
     {
       "from": "public",
       "to": "app/public"
+    },
+    {
+      "from": "public",
+      "to": "assets"
     }
   ],
+  "asar": true,
   "win": {
     "target": [
       {
@@ -36,7 +41,8 @@
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
+    "createStartMenuShortcut": true,
+    "shortcutName": "AI Novel Web"
   },
   "mac": {
     "target": [
