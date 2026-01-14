@@ -129,7 +129,7 @@ export async function getTextProviderAsync(name?: ProviderName): Promise<TextPro
  * ```
  */
 export function getImageProvider(name?: ProviderName): ImageProvider {
-  const providerName = name || DEFAULT_IMAGE_PROVIDER
+  const providerName = name || ENV_IMAGE_PROVIDER || "gemini"
 
   // 检查缓存
   if (imageProviderCache.has(providerName)) {
