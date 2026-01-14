@@ -2,20 +2,19 @@
 // https://pris.ly/d/prisma-schema
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./data.db"
 }
 
 // ==================== User (Simplified) ====================
 
 model User {
   id        String   @id @default(cuid())
-  shortId   Int      @unique @default(autoincrement()) @map("short_id")
+  shortId   Int?     @unique @map("short_id")
   nickname  String?
   avatar    String?
 
@@ -92,9 +91,9 @@ model ChapterSummary {
   chapterId String  @unique @map("chapter_id")
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
-  summary    String   // 摘要内容
-  keyPoints  String[] // 关键点：["伏笔A", "角色B登场"]
-  tokenCount Int?     @map("token_count")
+  summary    String  // 摘要内容
+  keyPoints  String? @map("key_points") // JSON 格式存储：["伏笔A", "角色B登场"]
+  tokenCount Int?    @map("token_count")
   isManual   Boolean  @default(false) @map("is_manual")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -116,7 +115,7 @@ model Card {
   description String?
   avatar      String?
   tags        String?
-  triggers    String[] // 触发词数组，用于 Lorebook 自动关联
+  triggers    String?  @map("triggers") // JSON 格式存储触发词数组
   sortOrder   Int      @default(0) @map("sort_order")
   isPinned    Boolean  @default(false) @map("is_pinned")
   attributes  Json?    // 扩展属性

@@ -12,6 +12,16 @@ import { checkCredits, consumeCredits } from "@/lib/credits"
 import { logStreamComplete } from "@/lib/ai/logger"
 import type { CharacterAttributes } from "@/hooks/use-cards"
 
+// 辅助函数：将 JSON 字符串解析为数组
+function parseArray(str: string | null | undefined): string[] {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
 /**
  * 根据触发词匹配卡片
  * @param text 要匹配的文本（章节剧情、故事背景等）
@@ -20,7 +30,7 @@ import type { CharacterAttributes } from "@/hooks/use-cards"
  */
 function matchCardsByTriggers(
   text: string,
-  cards: { id: string; name: string; category: string; description: string | null; triggers: string[]; attributes: unknown }[]
+  cards: { id: string; name: string; category: string; description: string | null; triggers: string | null; attributes: unknown }[]
 ): MatchedCard[] {
   if (!text || cards.length === 0) return []
 
@@ -28,11 +38,14 @@ function matchCardsByTriggers(
   const matchedIds = new Set<string>()
 
   for (const card of cards) {
+    // 解析 triggers JSON 字符串
+    const triggers = parseArray(card.triggers)
+
     // 跳过没有触发词的卡片
-    if (!card.triggers || card.triggers.length === 0) continue
+    if (triggers.length === 0) continue
 
     // 检查任意触发词是否在文本中出现
-    const isMatched = card.triggers.some(trigger => {
+    const isMatched = triggers.some(trigger => {
       if (!trigger) return false
       return text.includes(trigger)
     })
@@ -169,11 +182,11 @@ export async function POST(
       sanitizedData.storyBackground,
     ].filter(Boolean).join("\n")
 
-    // 使用触发词匹配卡片
+    // 使用触发词匹配卡片（SQLite 中 triggers 是 JSON 字符串）
     const cardsWithTriggers = await db.card.findMany({
       where: {
         novelId,
-        triggers: { isEmpty: false },
+        triggers: { not: null },
       },
       select: {
         id: true,

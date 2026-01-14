@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 
+// 辅助函数：将 JSON 字符串解析为数组
+function parseArray(str: string | null | undefined): string[] {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
 // GET /api/novels/[novelId]/summaries - 获取小说的所有章节摘要
 export async function GET(
   request: NextRequest,
@@ -43,9 +53,18 @@ export async function GET(
       },
     })
 
+    // 转换 keyPoints 字段
+    const transformedChapters = chapters.map(chapter => ({
+      ...chapter,
+      summary: chapter.summary ? {
+        ...chapter.summary,
+        keyPoints: parseArray(chapter.summary.keyPoints),
+      } : null,
+    }))
+
     return NextResponse.json({
       novelSummary: novel.summary,
-      chapters,
+      chapters: transformedChapters,
     })
   } catch (error) {
     console.error("Get summaries error:", error)

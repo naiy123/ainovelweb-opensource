@@ -10,6 +10,30 @@ const summarySchema = z.object({
   isManual: z.boolean().optional().default(false),
 })
 
+// 辅助函数：将数组转为 JSON 字符串存储
+function serializeArray(arr: string[] | null | undefined): string | null {
+  if (!arr || arr.length === 0) return null
+  return JSON.stringify(arr)
+}
+
+// 辅助函数：将 JSON 字符串解析为数组
+function parseArray(str: string | null | undefined): string[] {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
+// 辅助函数：转换摘要数据
+function transformSummary(summary: { keyPoints?: string | null; [key: string]: unknown }) {
+  return {
+    ...summary,
+    keyPoints: parseArray(summary.keyPoints),
+  }
+}
+
 // GET /api/novels/[novelId]/summaries/[chapterId] - 获取章节摘要
 export async function GET(
   request: NextRequest,
@@ -36,7 +60,7 @@ export async function GET(
       return NextResponse.json({ error: "摘要不存在" }, { status: 404 })
     }
 
-    return NextResponse.json(summary)
+    return NextResponse.json(transformSummary(summary))
   } catch (error) {
     console.error("Get chapter summary error:", error)
     return NextResponse.json({ error: "获取摘要失败" }, { status: 500 })
@@ -73,7 +97,7 @@ export async function PUT(
       where: { chapterId },
       update: {
         summary: validatedData.summary,
-        keyPoints: validatedData.keyPoints,
+        keyPoints: serializeArray(validatedData.keyPoints),
         tokenCount: validatedData.tokenCount,
         isManual: validatedData.isManual,
       },
@@ -81,13 +105,13 @@ export async function PUT(
         novelId,
         chapterId,
         summary: validatedData.summary,
-        keyPoints: validatedData.keyPoints,
+        keyPoints: serializeArray(validatedData.keyPoints),
         tokenCount: validatedData.tokenCount,
         isManual: validatedData.isManual,
       },
     })
 
-    return NextResponse.json(summary)
+    return NextResponse.json(transformSummary(summary))
   } catch (error) {
     console.error("Update chapter summary error:", error)
     if (error instanceof z.ZodError) {

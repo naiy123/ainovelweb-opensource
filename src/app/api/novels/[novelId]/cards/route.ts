@@ -26,9 +26,34 @@ const createCardSchema = z.object({
   description: z.string().max(5000, "描述不能超过5000字").nullish(),
   avatar: z.string().nullish(),
   tags: z.string().nullish(),
+  triggers: z.array(z.string()).nullish(),
   isPinned: z.boolean().nullish(),
   attributes: z.record(z.string(), z.unknown()).nullish(),
 })
+
+// 辅助函数：将数组转为 JSON 字符串存储
+function serializeArray(arr: string[] | null | undefined): string | null {
+  if (!arr || arr.length === 0) return null
+  return JSON.stringify(arr)
+}
+
+// 辅助函数：将 JSON 字符串解析为数组
+function parseArray(str: string | null | undefined): string[] {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
+// 辅助函数：转换卡片数据（将 triggers 从 JSON 字符串转为数组）
+function transformCard(card: { triggers?: string | null; [key: string]: unknown }) {
+  return {
+    ...card,
+    triggers: parseArray(card.triggers),
+  }
+}
 
 // GET /api/novels/[novelId]/cards - 获取卡片列表
 export async function GET(
@@ -65,7 +90,8 @@ export async function GET(
       ],
     })
 
-    return NextResponse.json(cards)
+    // 转换 triggers 字段
+    return NextResponse.json(cards.map(transformCard))
   } catch (error) {
     console.error("Get cards error:", error)
     return NextResponse.json({ error: "获取卡片列表失败" }, { status: 500 })
@@ -107,13 +133,14 @@ export async function POST(
         description: validatedData.description || null,
         avatar: validatedData.avatar || null,
         tags: validatedData.tags || null,
+        triggers: serializeArray(validatedData.triggers),
         isPinned: validatedData.isPinned || false,
         sortOrder: (maxSortOrder._max.sortOrder || 0) + 1,
         attributes: validatedData.attributes as Prisma.InputJsonValue | undefined,
       },
     })
 
-    return NextResponse.json(card, { status: 201 })
+    return NextResponse.json(transformCard(card), { status: 201 })
   } catch (error) {
     console.error("Create card error:", error)
 

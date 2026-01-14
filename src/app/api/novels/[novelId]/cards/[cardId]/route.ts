@@ -13,10 +13,35 @@ const updateCardSchema = z.object({
   description: z.string().max(5000, "描述不能超过5000字").optional().nullable(),
   avatar: z.string().optional().nullable(),
   tags: z.string().optional().nullable(),
+  triggers: z.array(z.string()).optional().nullable(),
   isPinned: z.boolean().optional(),
   sortOrder: z.number().optional(),
   attributes: z.record(z.string(), z.unknown()).optional().nullable(),
 })
+
+// 辅助函数：将数组转为 JSON 字符串存储
+function serializeArray(arr: string[] | null | undefined): string | null {
+  if (!arr || arr.length === 0) return null
+  return JSON.stringify(arr)
+}
+
+// 辅助函数：将 JSON 字符串解析为数组
+function parseArray(str: string | null | undefined): string[] {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
+// 辅助函数：转换卡片数据
+function transformCard(card: { triggers?: string | null; [key: string]: unknown }) {
+  return {
+    ...card,
+    triggers: parseArray(card.triggers),
+  }
+}
 
 // GET /api/novels/[novelId]/cards/[cardId] - 获取卡片详情
 export async function GET(
@@ -44,7 +69,7 @@ export async function GET(
       return NextResponse.json({ error: "卡片不存在" }, { status: 404 })
     }
 
-    return NextResponse.json(card)
+    return NextResponse.json(transformCard(card))
   } catch (error) {
     console.error("Get card error:", error)
     return NextResponse.json({ error: "获取卡片失败" }, { status: 500 })
@@ -88,6 +113,7 @@ export async function PUT(
     if (validatedData.description !== undefined) updateData.description = validatedData.description
     if (validatedData.avatar !== undefined) updateData.avatar = validatedData.avatar
     if (validatedData.tags !== undefined) updateData.tags = validatedData.tags
+    if (validatedData.triggers !== undefined) updateData.triggers = serializeArray(validatedData.triggers)
     if (validatedData.isPinned !== undefined) updateData.isPinned = validatedData.isPinned
     if (validatedData.sortOrder !== undefined) updateData.sortOrder = validatedData.sortOrder
     if (validatedData.attributes !== undefined) {
@@ -99,7 +125,7 @@ export async function PUT(
       data: updateData,
     })
 
-    return NextResponse.json(card)
+    return NextResponse.json(transformCard(card))
   } catch (error) {
     console.error("Update card error:", error)
 

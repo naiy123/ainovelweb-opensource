@@ -3,6 +3,30 @@ import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
 import { getTextProvider } from "@/lib/ai"
 
+// 辅助函数：将数组转为 JSON 字符串存储
+function serializeArray(arr: string[] | null | undefined): string | null {
+  if (!arr || arr.length === 0) return null
+  return JSON.stringify(arr)
+}
+
+// 辅助函数：将 JSON 字符串解析为数组
+function parseArray(str: string | null | undefined): string[] {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
+// 辅助函数：转换摘要数据
+function transformSummary(summary: { keyPoints?: string | null; [key: string]: unknown }) {
+  return {
+    ...summary,
+    keyPoints: parseArray(summary.keyPoints),
+  }
+}
+
 // POST /api/novels/[novelId]/summaries/[chapterId]/generate - AI 生成章节摘要
 export async function POST(
   request: NextRequest,
@@ -82,7 +106,7 @@ ${chapter.content.slice(0, 8000)}
       where: { chapterId },
       update: {
         summary: result.summary,
-        keyPoints: result.keyPoints,
+        keyPoints: serializeArray(result.keyPoints),
         tokenCount,
         isManual: false,
       },
@@ -90,13 +114,13 @@ ${chapter.content.slice(0, 8000)}
         novelId,
         chapterId,
         summary: result.summary,
-        keyPoints: result.keyPoints,
+        keyPoints: serializeArray(result.keyPoints),
         tokenCount,
         isManual: false,
       },
     })
 
-    return NextResponse.json(summary)
+    return NextResponse.json(transformSummary(summary))
   } catch (error) {
     console.error("Generate summary error:", error)
     return NextResponse.json({ error: "生成摘要失败" }, { status: 500 })

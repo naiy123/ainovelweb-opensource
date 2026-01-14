@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Electron 打包需要 standalone 输出
+  output: 'standalone',
   // 构建时忽略ESLint错误（开发时仍然检查）
   eslint: {
     ignoreDuringBuilds: true,

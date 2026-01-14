@@ -103,3 +103,5 @@ tmpclaude-*
 
 # Claude Code
 .claude/
+prisma/data.db
+dist-electron/
