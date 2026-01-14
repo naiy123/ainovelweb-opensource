@@ -130,7 +130,8 @@ export default function TermsPage() {
             <p>
               如您对本协议有任何疑问，或在使用过程中遇到问题，请通过以下方式联系我们：
             </p>
-            <p className="text-cyan-400">邮箱：support@lingji.ai</p>
+            {/* 本地版本：邮箱已隐藏 */}
+            <p className="text-cyan-400">（本地版本）</p>
           </section>
 
           <section>

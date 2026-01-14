@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { ICPFooter } from "@/components/layout/icp-footer";
 import {
   WebsiteJsonLd,
   OrganizationJsonLd,
   SoftwareApplicationJsonLd,
 } from "@/components/seo/json-ld";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lingji.ai";
+// 本地版本使用 localhost
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -104,7 +104,6 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <Providers>
           {children}
-          <ICPFooter />
         </Providers>
       </body>
     </html>

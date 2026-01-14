@@ -149,7 +149,8 @@ export default function PrivacyPage() {
             <p>
               如果您对本隐私政策有任何疑问、意见或建议，或需要行使您的个人信息权利，请通过以下方式联系我们：
             </p>
-            <p className="text-cyan-400">邮箱：privacy@lingji.ai</p>
+            {/* 本地版本：邮箱已隐藏 */}
+            <p className="text-cyan-400">（本地版本）</p>
             <p className="mt-4">
               我们将在收到您的请求后15个工作日内予以回复。
             </p>

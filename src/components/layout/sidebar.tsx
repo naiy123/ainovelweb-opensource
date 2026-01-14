@@ -21,11 +21,12 @@ const navItems = [
   { name: "创意", href: "/dashboard", icon: Lightbulb, ready: true },
   { name: "智能封面", href: "/cover-generator", icon: ImageIcon, ready: true },
   { name: "朱雀降重", href: "/humanize", icon: Bird, ready: true },
-  { name: "智能扫榜", href: "/rankings", icon: TrendingUp, ready: false },
-  { name: "写作模板", href: "/templates", icon: FileText, ready: false },
-  { name: "智能推文", href: "/marketing", icon: MessageSquareText, ready: false },
-  { name: "教学", href: "/courses", icon: GraduationCap, ready: false },
-  { name: "创作中心", href: "/studio", icon: PenTool, ready: false },
+  // 以下功能本地版暂不可用
+  // { name: "智能扫榜", href: "/rankings", icon: TrendingUp, ready: false },
+  // { name: "写作模板", href: "/templates", icon: FileText, ready: false },
+  // { name: "智能推文", href: "/marketing", icon: MessageSquareText, ready: false },
+  // { name: "教学", href: "/courses", icon: GraduationCap, ready: false },
+  // { name: "创作中心", href: "/studio", icon: PenTool, ready: false },
 ];
 
 export function Sidebar() {

@@ -1,4 +1,5 @@
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://lingji.ai'
+// 本地版本使用 localhost
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
 // 网站/组织结构化数据
 export function WebsiteJsonLd() {
