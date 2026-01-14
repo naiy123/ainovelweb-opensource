@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
-import { generateCard } from "@/lib/ai/gemini"
+import { generateCard } from "@/lib/ai"
 import { requireUserId } from "@/lib/auth/get-user"
 import { rateLimit } from "@/lib/rate-limit"
 import { sanitizePromptInput, validateOrigin, csrfErrorResponse } from "@/lib/security"
-import { getCardModelConfig, DEFAULT_CARD_MODEL_ID } from "@/lib/ai/models"
-import { withCredits, getCreditsErrorStatus } from "@/lib/credits"
 
 const generateCardSchema = z.object({
   category: z.enum(["character", "term"]),
@@ -29,7 +27,7 @@ export async function POST(
 
     const userId = await requireUserId()
 
-    // 速率限制：每用户每分钟 10 次（卡片生成较轻量）
+    // 速率限制：每用户每分钟 10 次
     const rateLimitKey = `ai:card:${userId}`
     const rateLimitResult = await rateLimit(rateLimitKey, 10, 60)
     if (!rateLimitResult.success) {
@@ -48,10 +46,6 @@ export async function POST(
     const sanitizedKeywords = sanitizePromptInput(validatedData.keywords, 500)
     const sanitizedStyle = validatedData.style ? sanitizePromptInput(validatedData.style, 200) : undefined
 
-    // 获取模型配置
-    const modelConfig = getCardModelConfig(validatedData.model || DEFAULT_CARD_MODEL_ID)
-    const requiredCredits = modelConfig.credits
-
     // 验证小说属于当前用户
     const novel = await db.novel.findUnique({
       where: { id: novelId, userId },
@@ -68,38 +62,17 @@ export async function POST(
     })
     const existingNames = existingCards.map((c) => c.name)
 
-    // 使用 withCredits 统一处理扣费逻辑
-    const result = await withCredits(
-      {
-        userId,
-        amount: requiredCredits,
-        category: "card",
-        description: `${validatedData.category === "character" ? "角色" : "词条"}生成 (${modelConfig.name})`,
-      },
-      async () => {
-        return await generateCard({
-          category: validatedData.category,
-          keywords: sanitizedKeywords,
-          style: sanitizedStyle,
-          novelTitle: novel.title,
-          existingCards: existingNames,
-          model: validatedData.model,
-        })
-      }
-    )
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: getCreditsErrorStatus(result.code) }
-      )
-    }
-
-    return NextResponse.json({
-      ...result.data,
-      creditsConsumed: result.creditsConsumed,
-      balanceAfter: result.balanceAfter,
+    // 生成卡片（使用火山引擎豆包模型）
+    const result = await generateCard({
+      category: validatedData.category,
+      keywords: sanitizedKeywords,
+      style: sanitizedStyle,
+      novelTitle: novel.title,
+      existingCards: existingNames,
+      model: validatedData.model,
     })
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error("Generate card error:", error)
 
