@@ -209,6 +209,18 @@ model UserActivity {
   @@map("user_activities")
 }
 
+// ==================== Settings (本地设置) ====================
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
 // ==================== Outline (大纲系统) ====================
 
 model OutlineNode {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { getTextProvider, type TokenUsage } from "@/lib/ai"
+import { getTextProviderAsync, type TokenUsage } from "@/lib/ai"
 import { buildChapterSystemPrompt, buildChapterUserPrompt, type MatchedCard, type ChapterSummaryInfo } from "@/lib/ai/prompts/chapter"
 import { generateChapterSchema } from "@/lib/validations/chapter"
 import { ZodError } from "zod"
@@ -236,8 +236,8 @@ export async function POST(
     const systemPrompt = buildChapterSystemPrompt(chapterInput)
     const userPrompt = buildChapterUserPrompt(chapterInput)
 
-    // 获取 Text Provider
-    const textProvider = getTextProvider()
+    // 获取 Text Provider（自动检测数据库配置的 API Key）
+    const textProvider = await getTextProviderAsync()
 
     // 创建流式响应
     const encoder = new TextEncoder()
