@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Settings, User } from "lucide-react";
+import { ArrowLeft, User } from "lucide-react";
 import Link from "next/link";
 
 interface EditorToolbarProps {
@@ -30,12 +30,13 @@ export function EditorToolbar({
 
       {/* Right Section */}
       <div className="flex items-center gap-3">
-        <button className="flex size-9 items-center justify-center rounded hover:bg-gray-100">
-          <Settings className="size-5 text-[#6a7282]" />
-        </button>
-        <button className="flex size-9 items-center justify-center rounded hover:bg-gray-100">
+        <Link
+          href="/dashboard/profile"
+          className="flex size-9 items-center justify-center rounded hover:bg-gray-100"
+          title="个人中心"
+        >
           <User className="size-5 text-[#6a7282]" />
-        </button>
+        </Link>
       </div>
     </div>
   );
