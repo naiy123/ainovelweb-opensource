@@ -29,7 +29,7 @@ const ALL_MODELS: Record<string, Omit<ModelInfo, "configured"> & { requiredKey: 
     id: "seedream",
     name: "Seedream",
     provider: "volcengine",
-    description: "火山引擎图像生成模型",
+    description: "火山引擎图像生成（需同时配置豆包 API）",
     type: "image",
     requiredKey: SETTINGS_KEYS.SEEDREAM_API_KEY,
   },
@@ -49,14 +49,21 @@ export async function GET() {
     const settings = await getSettings()
 
     // 返回所有模型，标记是否已配置
-    const allModels: ModelInfo[] = Object.values(ALL_MODELS).map(model => ({
-      id: model.id,
-      name: model.name,
-      provider: model.provider,
-      description: model.description,
-      type: model.type,
-      configured: !!settings[model.requiredKey],
-    }))
+    const allModels: ModelInfo[] = Object.values(ALL_MODELS).map(model => {
+      // Seedream 需要同时配置 seedream_api_key 和 doubao_api_key（风格家两阶段流程）
+      const configured = model.id === "seedream"
+        ? !!(settings[SETTINGS_KEYS.SEEDREAM_API_KEY] && settings[SETTINGS_KEYS.DOUBAO_API_KEY])
+        : !!settings[model.requiredKey]
+
+      return {
+        id: model.id,
+        name: model.name,
+        provider: model.provider,
+        description: model.description,
+        type: model.type,
+        configured,
+      }
+    })
 
     // 已配置的模型
     const configuredModels = allModels.filter(m => m.configured)
