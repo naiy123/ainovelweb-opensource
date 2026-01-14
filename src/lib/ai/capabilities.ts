@@ -177,7 +177,16 @@ export function hasCapability<K extends keyof ProviderCapabilities>(
 export function supportsThinking(provider: ProviderName, model: string): boolean {
   const caps = PROVIDER_CAPABILITIES[provider]
   if (!caps) return false
-  return caps.thinkingModels.includes(model)
+
+  // 精确匹配
+  if (caps.thinkingModels.includes(model)) return true
+
+  // 模式匹配（火山引擎的 seed 系列都是深度思考模型）
+  if (provider === "volcengine" && model.includes("seed")) {
+    return true
+  }
+
+  return false
 }
 
 /**

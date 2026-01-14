@@ -1,11 +1,10 @@
 "use client"
 
 import { useMemo, useCallback, useEffect } from "react"
-import { Sparkles, X, Info, Search, FileText, Coins } from "lucide-react"
+import { Sparkles, X, Info, Search, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAIWritingForm } from "./hooks/use-ai-writing-form"
 import { ModelSelector, ThinkingPanel, CharacterPicker, TermPicker, ChapterPicker, ChapterOutlineLink, ContextPreview } from "./components"
-import { calculateLinkedChaptersCredits } from "@/lib/ai/models"
 import { useSummaries } from "@/hooks/use-summaries"
 import type { AIWritingPanelProps } from "./types"
 import type { CharacterAttributes } from "@/hooks/use-cards"
@@ -61,13 +60,12 @@ export function AIWritingPanel({
     )
   }
 
-  // 计算关联章节的字数和预估消耗
+  // 计算关联章节的字数
   const linkedChaptersStats = useMemo(() => {
     const selectedChapterData = chapters.filter((c) => form.selectedChapters.includes(c.id))
     const totalChars = selectedChapterData.reduce((sum, c) => sum + (c.wordCount || 0), 0)
-    const estimatedCredits = totalChars > 0 ? calculateLinkedChaptersCredits(totalChars, form.aiModel) : 0
-    return { totalChars, estimatedCredits }
-  }, [chapters, form.selectedChapters, form.aiModel])
+    return { totalChars }
+  }, [chapters, form.selectedChapters])
 
   // 根据剧情文本匹配触发词卡片
   const matchedCards = useMemo(() => {
@@ -161,19 +159,11 @@ export function AIWritingPanel({
             <p className="text-xs text-[#6a7282]">一般用于章节正文写作</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 border border-amber-200">
-            <Coins className="size-3.5 text-amber-500" />
-            <span className="text-sm font-medium text-amber-600">
-              {form.balance !== null ? form.balance : "--"}
-            </span>
-          </div>
-          {onClose && (
-            <button onClick={onClose} className="flex size-7 items-center justify-center rounded hover:bg-gray-100">
-              <X className="size-4 text-[#6a7282]" />
-            </button>
-          )}
-        </div>
+        {onClose && (
+          <button onClick={onClose} className="flex size-7 items-center justify-center rounded hover:bg-gray-100">
+            <X className="size-4 text-[#6a7282]" />
+          </button>
+        )}
       </div>
 
       {/* Form Content */}
@@ -209,7 +199,7 @@ export function AIWritingPanel({
 
         {/* AI Model */}
         <ModelSelector
-          aiModel={form.aiModel}
+          selectedModel={form.aiModel}
           showPicker={form.showModelPicker}
           onTogglePicker={() => form.setShowModelPicker(!form.showModelPicker)}
           onSelectModel={(id) => { form.setAiModel(id); form.setShowModelPicker(false) }}
@@ -358,16 +348,12 @@ export function AIWritingPanel({
                 </div>
               )}
 
-              {/* 消耗预估 */}
+              {/* 字数统计 */}
               {form.selectedChapters.length > 0 && (
                 <div className="rounded bg-gray-50 px-3 py-2 text-xs">
                   <div className="flex items-center justify-between text-[#6a7282]">
                     <span>关联字数</span>
                     <span className="font-medium text-neutral-950">{linkedChaptersStats.totalChars.toLocaleString()} 字</span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[#6a7282]">
-                    <span>预估消耗</span>
-                    <span className="font-medium text-amber-600">+{linkedChaptersStats.estimatedCredits} 灵感点</span>
                   </div>
                 </div>
               )}

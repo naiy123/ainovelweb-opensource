@@ -47,6 +47,7 @@ export type { TextProvider, ImageProvider, AIProvider as UnifiedAIProvider } fro
 // 工厂函数
 export {
   getTextProvider,
+  getTextProviderAsync,
   getImageProvider,
   getTextProviderForModel,
   getImageProviderForModel,

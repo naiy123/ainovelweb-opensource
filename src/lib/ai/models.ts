@@ -1,6 +1,6 @@
 /**
  * AI 文字生成模型配置
- * 基于 Gemini API，包含模型ID、灵感点定价、思考模式等
+ * 本地版本使用火山引擎豆包模型
  */
 
 export interface AITextModel {
@@ -14,75 +14,17 @@ export interface AITextModel {
   inputPricePerMillion: number
 }
 
-// Vertex AI 定价 (美元/百万tokens) - 已包含 2 倍利润系数
-// Gemini 2.5 Flash Lite: $0.10 input × 2 = $0.20
-// Gemini 2.5 Flash: $0.30 input × 2 = $0.60
-// Gemini 2.5 Pro: $1.25 input × 2 = $2.50
-// Gemini 3 Pro: $2.00 input × 2 = $4.00
-
+// 火山引擎豆包模型配置（本地版本）
+// 统一使用 doubao-seed-1-6 深度思考模型
 export const AI_TEXT_MODELS: Record<string, AITextModel> = {
-  fast: {
-    id: "fast",
-    name: "疾速",
-    model: "gemini-2.5-flash-lite",
-    credits: 10,
-    description: "速度最快，经济实惠",
-    thinking: false,
-    inputPricePerMillion: 0.20,
-  },
   balanced: {
     id: "balanced",
-    name: "均衡",
-    model: "gemini-2.5-flash",
-    credits: 24,
-    description: "性价比最高，日常写作首选",
-    thinking: false,
-    inputPricePerMillion: 0.60,
-  },
-  thinking: {
-    id: "thinking",
-    name: "深思",
-    model: "gemini-2.5-flash",
-    credits: 33,
-    description: "开启深度思考，逻辑更严谨",
+    name: "豆包 1.6",
+    model: "doubao-seed-1-6-251015",
+    credits: 0,
+    description: "豆包深度思考模型",
     thinking: true,
     inputPricePerMillion: 0.60,
-  },
-  pro: {
-    id: "pro",
-    name: "专业",
-    model: "gemini-2.5-pro",
-    credits: 97,
-    description: "高质量输出，复杂剧情",
-    thinking: false,
-    inputPricePerMillion: 2.50,
-  },
-  master: {
-    id: "master",
-    name: "大师",
-    model: "gemini-2.5-pro",
-    credits: 131,
-    description: "专业级 + 深度思考",
-    thinking: true,
-    inputPricePerMillion: 2.50,
-  },
-  flagship: {
-    id: "flagship",
-    name: "旗舰",
-    model: "gemini-3-pro-preview",
-    credits: 118,
-    description: "最新模型，最强能力",
-    thinking: false,  // LOW
-    inputPricePerMillion: 4.00,
-  },
-  ultimate: {
-    id: "ultimate",
-    name: "至臻",
-    model: "gemini-3-pro-preview",
-    credits: 159,
-    description: "旗舰 + 深度思考，极致体验",
-    thinking: true,
-    inputPricePerMillion: 4.00,
   },
 } as const
 
@@ -112,26 +54,12 @@ export interface AICardModel {
 }
 
 export const AI_CARD_MODELS: Record<string, AICardModel> = {
-  fast: {
-    id: "fast",
-    name: "疾速",
-    model: "gemini-2.5-flash-lite",
-    credits: 1,
-    description: "快速生成，日常使用",
-  },
   balanced: {
     id: "balanced",
-    name: "均衡",
-    model: "gemini-2.5-flash",
-    credits: 3,
-    description: "更丰富的设定细节",
-  },
-  pro: {
-    id: "pro",
-    name: "专业",
-    model: "gemini-2.5-pro",
-    credits: 10,
-    description: "专业级角色/世界观设定",
+    name: "豆包 1.6",
+    model: "doubao-seed-1-6-251015",
+    credits: 0,
+    description: "豆包深度思考模型",
   },
 } as const
 
@@ -149,7 +77,7 @@ export function getCardModelList(): AICardModel[] {
 }
 
 // ============================================
-// 关联章节消耗计算
+// 关联章节消耗计算（本地版本保留计算逻辑但不扣费）
 // ============================================
 
 // 1 灵感点 = ¥0.0068
@@ -163,7 +91,7 @@ const CHARS_TO_TOKENS = 2
  * 计算关联章节的预估灵感点消耗
  * @param charCount 字符数
  * @param modelId 模型ID
- * @returns 预估消耗的灵感点数
+ * @returns 预估消耗的灵感点数（本地版本仅供参考）
  */
 export function calculateLinkedChaptersCredits(charCount: number, modelId: string): number {
   const model = getModelConfig(modelId)
