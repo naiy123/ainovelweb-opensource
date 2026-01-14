@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { toast } from "sonner"
 import type {
-  QuickModel,
   Step,
   BgMode,
   GenerateMode,
@@ -9,23 +8,13 @@ import type {
   ImageData,
   HistoryImage,
 } from "../types"
-import { QUICK_MODEL_OPTIONS, GENRE_OPTIONS } from "../constants"
-import { useUserStore } from "@/stores/user-store"
-import { useContactAdminStore } from "@/components/contact-admin-modal"
-
+import { GENRE_OPTIONS } from "../constants"
 export function useCoverGenerator() {
-  const refreshBalance = useUserStore((state) => state.refreshBalance)
-  const openContactAdmin = useContactAdminStore((state) => state.openContactAdmin)
-
-  // 处理错误，检查是否是灵感点不足
+  // 处理错误
   const handleError = useCallback((error: unknown) => {
     const message = error instanceof Error ? error.message : "生成失败"
-    if (message.includes("灵感点不足")) {
-      openContactAdmin(message)
-    } else {
-      toast.error(message)
-    }
-  }, [openContactAdmin])
+    toast.error(message)
+  }, [])
 
   // 生成模式
   const [generateMode, setGenerateMode] = useState<GenerateMode>("quick")
@@ -40,7 +29,7 @@ export function useCoverGenerator() {
 
   // 快速生成状态
   const [isGeneratingQuick, setIsGeneratingQuick] = useState(false)
-  const [quickModel, setQuickModel] = useState<QuickModel>("designer")
+  const [selectedModel, setSelectedModel] = useState<string>("seedream")
 
   // 背景相关
   const [bgMode, setBgMode] = useState<BgMode>("preset")
@@ -66,8 +55,6 @@ export function useCoverGenerator() {
   // Refs
   const bgInputRef = useRef<HTMLInputElement>(null)
   const styleInputRef = useRef<HTMLInputElement>(null)
-
-  const selectedModelConfig = QUICK_MODEL_OPTIONS.find(m => m.id === quickModel)!
 
   const loadHistory = useCallback(async (cursor?: string) => {
     setHistoryLoading(true)
@@ -150,19 +137,18 @@ export function useCoverGenerator() {
       })
       toast.success("背景生成成功！")
       loadHistory()
-      refreshBalance()
-    } catch (error) {
+          } catch (error) {
       handleError(error)
     } finally {
       setIsGeneratingBg(false)
     }
-  }, [aiPrompt, loadHistory, refreshBalance, handleError])
+  }, [aiPrompt, loadHistory, handleError])
 
   const handleQuickGenerate = useCallback(async () => {
     if (isGeneratingQuick) return
     if (!title) { toast.error("请输入书名"); return }
     if (!genre) { toast.error("请选择小说类型"); return }
-    if (!selectedModelConfig.available) { toast.error("该模型暂未开放"); return }
+    if (!selectedModel) { toast.error("请选择图片生成模型"); return }
 
     setIsGeneratingQuick(true)
     setResultImage(null)
@@ -175,7 +161,7 @@ export function useCoverGenerator() {
           title, author,
           channel: GENRE_OPTIONS[channel].label,
           genre, description,
-          model: quickModel,
+          model: selectedModel,
         }),
       })
       const data = await response.json()
@@ -184,13 +170,12 @@ export function useCoverGenerator() {
       setResultImage(data.imageUrl)
       toast.success("封面生成成功！")
       loadHistory()
-      refreshBalance()
     } catch (error) {
       handleError(error)
     } finally {
       setIsGeneratingQuick(false)
     }
-  }, [isGeneratingQuick, title, genre, selectedModelConfig, author, channel, description, quickModel, loadHistory, refreshBalance, handleError])
+  }, [isGeneratingQuick, title, genre, selectedModel, author, channel, description, loadHistory, handleError])
 
   const handleGenerateFinal = useCallback(async () => {
     if (!title) { toast.error("请输入书名"); return }
@@ -215,13 +200,12 @@ export function useCoverGenerator() {
       setResultImage(data.imageUrl)
       toast.success("封面生成成功！")
       loadHistory()
-      refreshBalance()
-    } catch (error) {
+          } catch (error) {
       handleError(error)
     } finally {
       setIsGeneratingFinal(false)
     }
-  }, [title, backgroundImage, styleImage, author, description, loadHistory, refreshBalance, handleError])
+  }, [title, backgroundImage, styleImage, author, description, loadHistory, handleError])
 
   const handleDownload = useCallback((url: string, filename: string) => {
     const link = document.createElement("a")
@@ -238,15 +222,15 @@ export function useCoverGenerator() {
   return {
     // State
     generateMode, step, title, author, channel, genre, description,
-    isGeneratingQuick, quickModel, bgMode, backgroundImage, aiPrompt,
+    isGeneratingQuick, selectedModel, bgMode, backgroundImage, aiPrompt,
     isGeneratingBg, styleImage, resultImage, isGeneratingFinal,
     historyImages, historyLoading, historyNextCursor, historyHasMore,
-    previewImage, historyExpanded, selectedModelConfig,
+    previewImage, historyExpanded,
     // Refs
     bgInputRef, styleInputRef,
     // Setters
     setGenerateMode, setStep, setTitle, setAuthor, setGenre, setDescription,
-    setQuickModel, setBgMode, setBackgroundImage, setAiPrompt, setStyleImage,
+    setSelectedModel, setBgMode, setBackgroundImage, setAiPrompt, setStyleImage,
     setResultImage, setPreviewImage, setHistoryExpanded,
     // Actions
     handleChannelChange, handleImageUpload, loadImageFromUrl,

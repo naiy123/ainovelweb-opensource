@@ -16,13 +16,13 @@ export function CoverGenerator() {
   const {
     // State
     generateMode, step, title, author, channel, genre, description,
-    isGeneratingQuick, quickModel, backgroundImage,
+    isGeneratingQuick, selectedModel, backgroundImage,
     resultImage, isGeneratingFinal,
     historyImages, historyLoading, historyNextCursor, historyHasMore,
-    previewImage, historyExpanded, selectedModelConfig,
+    previewImage, historyExpanded,
     // Setters
     setGenerateMode, setTitle, setAuthor, setGenre, setDescription,
-    setQuickModel, setPreviewImage, setHistoryExpanded,
+    setSelectedModel, setPreviewImage, setHistoryExpanded,
     // Actions
     handleChannelChange, handleQuickGenerate, handleDownload, loadHistory,
   } = useCoverGenerator()
@@ -49,8 +49,8 @@ export function CoverGenerator() {
 
             {generateMode === "quick" && (
               <ModelSelector
-                quickModel={quickModel}
-                onModelChange={setQuickModel}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
               />
             )}
 
@@ -73,7 +73,6 @@ export function CoverGenerator() {
                 isGenerating={isGeneratingQuick}
                 title={title}
                 genre={genre}
-                selectedModelConfig={selectedModelConfig}
                 onGenerate={handleQuickGenerate}
               />
             )}
