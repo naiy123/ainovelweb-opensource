@@ -1,4 +1,9 @@
-import { ai } from "./client"
+/**
+ * AI 生成大纲节点
+ * 使用火山引擎豆包模型（与正文生成一致）
+ */
+
+import { getTextProviderAsync } from "./factory"
 import type { OutlineGenerationParams, OutlineGenerationResult, OutlineNodeType } from "./types"
 import { getCardModelConfig, DEFAULT_CARD_MODEL_ID } from "./models"
 import { logAIRequest, logAIResponse } from "./logger"
@@ -103,34 +108,41 @@ ${params.keywords}`
 }
 
 /**
+ * 从文本中提取 JSON
+ */
+function extractJSON(text: string): string {
+  // 尝试直接解析
+  try {
+    JSON.parse(text)
+    return text
+  } catch {
+    // 继续尝试提取
+  }
+
+  // 移除 markdown 代码块
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (codeBlockMatch) {
+    return codeBlockMatch[1].trim()
+  }
+
+  // 尝试找到 JSON 对象
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (jsonMatch) {
+    return jsonMatch[0]
+  }
+
+  return text
+}
+
+/**
  * AI 生成大纲节点
  */
 export async function generateOutline(params: OutlineGenerationParams): Promise<OutlineGenerationResult> {
-  const prompt = buildOutlinePrompt(params)
-  const systemInstruction = buildOutlineSystemInstruction(params)
+  const userPrompt = buildOutlinePrompt(params)
+  const systemPrompt = buildOutlineSystemInstruction(params)
 
   // 获取模型配置（复用卡片生成的模型配置）
   const modelConfig = getCardModelConfig(params.model || DEFAULT_CARD_MODEL_ID)
-
-  // 根据模型配置思考参数
-  const isGemini25 = modelConfig.model.includes("gemini-2.5")
-  const isGemini25Lite = modelConfig.model.includes("flash-lite")
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const config: any = {
-    systemInstruction,
-    temperature: 0.9,
-    maxOutputTokens: 4096,
-    responseMimeType: "application/json",
-  }
-
-  // Gemini 2.5 (非 Lite) 需要配置最小思考预算
-  if (isGemini25 && !isGemini25Lite) {
-    config.thinkingConfig = {
-      thinkingBudget: 128,
-      includeThoughts: false,
-    }
-  }
 
   const nodeLabel = NODE_TYPE_LABELS[params.nodeType]
 
@@ -139,60 +151,56 @@ export async function generateOutline(params: OutlineGenerationParams): Promise<
     title: `大纲生成 (${nodeLabel})`,
     model: modelConfig.model,
     modelDisplayName: modelConfig.name,
-    temperature: config.temperature,
-    maxOutputTokens: config.maxOutputTokens,
-    thinkingConfig: config.thinkingConfig,
-    systemInstruction,
-    prompt,
+    systemInstruction: systemPrompt,
+    prompt: userPrompt,
     extraParams: {
+      Provider: "火山引擎",
       NodeType: params.nodeType,
       Keywords: params.keywords,
       Style: params.style,
       NovelTitle: params.novelTitle,
       ParentNode: params.parentNode?.title,
-      ResponseMimeType: config.responseMimeType,
     },
   })
 
   const startTime = Date.now()
 
-  const response = await ai.models.generateContent({
+  // 使用火山引擎 provider（与正文生成一致）
+  const textProvider = await getTextProviderAsync()
+  const result = await textProvider.generate({
     model: modelConfig.model,
-    contents: prompt,
-    config,
+    systemPrompt,
+    userPrompt,
   })
 
-  const text = response.text || "{}"
   const durationMs = Date.now() - startTime
+  const text = result.content || "{}"
 
   // 打印响应日志
-  const usage = response.usageMetadata
-  const finishReason = response.candidates?.[0]?.finishReason
-
   logAIResponse({
     title: `大纲生成 (${nodeLabel})`,
     success: true,
     durationMs,
-    finishReason: finishReason as string,
+    finishReason: result.finishReason,
     contentLength: text.length,
     contentPreview: text.slice(0, 500) + (text.length > 500 ? "..." : ""),
-    usage: usage ? {
-      promptTokenCount: usage.promptTokenCount,
-      candidatesTokenCount: usage.candidatesTokenCount,
-      thoughtsTokenCount: usage.thoughtsTokenCount,
-      cachedContentTokenCount: usage.cachedContentTokenCount,
-      totalTokenCount: usage.totalTokenCount,
-    } : undefined,
+    usage: {
+      promptTokenCount: result.usage.inputTokens,
+      candidatesTokenCount: result.usage.outputTokens,
+      totalTokenCount: result.usage.totalTokens,
+    },
   })
 
   try {
-    const data = JSON.parse(text)
+    const jsonText = extractJSON(text)
+    const data = JSON.parse(jsonText)
     return {
       nodeType: params.nodeType,
       data,
     }
   } catch (e) {
     console.error("JSON 解析失败:", e)
+    console.error("原始响应:", text)
     throw new Error("AI 返回格式错误")
   }
 }

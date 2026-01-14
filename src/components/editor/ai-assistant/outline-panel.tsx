@@ -5,7 +5,7 @@ import { Sparkles, BookOpen, Layers, Target, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { GeneratedOutlineNode } from "@/lib/ai"
 import type { OutlineNode, OutlineNodeType } from "@/hooks/use-outline"
-import { ModelSelector, StyleSelector, GenerateButton, ErrorMessage, MODEL_OPTIONS } from "./shared"
+import { ModelSelector, StyleSelector, GenerateButton, ErrorMessage } from "./shared"
 
 // 节点类型配置
 const NODE_TYPE_CONFIG: Record<OutlineNodeType, {
@@ -77,13 +77,29 @@ export function OutlineAssistantPanel({
 
   const [keywords, setKeywords] = useState("")
   const [style, setStyle] = useState("")
-  const [selectedModel, setSelectedModel] = useState("fast")
+  const [selectedModel, setSelectedModel] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedResult, setGeneratedResult] = useState<GeneratedOutlineNode | null>(null)
   const [selectedTitleIndex, setSelectedTitleIndex] = useState(0)
   const [error, setError] = useState("")
+  const [hasConfiguredModel, setHasConfiguredModel] = useState(false)
 
-  const currentModel = MODEL_OPTIONS.find((m) => m.id === selectedModel) || MODEL_OPTIONS[0]
+  // 检查是否有已配置的模型
+  useEffect(() => {
+    const checkModels = async () => {
+      try {
+        const res = await fetch("/api/models/available")
+        if (res.ok) {
+          const data = await res.json()
+          const configured = (data.textModels || []).some((m: { configured: boolean }) => m.configured)
+          setHasConfiguredModel(configured)
+        }
+      } catch (err) {
+        console.error("Failed to check models:", err)
+      }
+    }
+    checkModels()
+  }, [])
 
   // 轮换 placeholder
   useEffect(() => {
@@ -217,8 +233,8 @@ export function OutlineAssistantPanel({
             onClick={handleGenerate}
             isGenerating={isGenerating}
             disabled={!keywords.trim()}
-            credits={currentModel.credits}
             label={`智能生成${config.label}`}
+            hasConfiguredModel={hasConfiguredModel}
           />
 
           {/* 错误提示 */}
