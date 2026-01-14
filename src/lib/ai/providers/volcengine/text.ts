@@ -7,7 +7,7 @@
  * - 思考内容通过 reasoning_content 字段返回
  */
 
-import { volcClient } from "./client"
+import { getVolcTextClient } from "./client"
 import type { TextProvider } from "../types"
 import type {
   TextGenerateParams,
@@ -110,7 +110,9 @@ export class VolcTextProvider implements TextProvider {
 
     const startTime = Date.now()
 
-    const completion = await volcClient.chat.completions.create(options)
+    // 动态获取客户端（从数据库读取 API Key）
+    const client = await getVolcTextClient()
+    const completion = await client.chat.completions.create(options)
 
     const result = this.translateResponse(completion)
     const durationMs = Date.now() - startTime
@@ -168,7 +170,9 @@ export class VolcTextProvider implements TextProvider {
 
     const startTime = Date.now()
 
-    const stream = await volcClient.chat.completions.create(options)
+    // 动态获取客户端（从数据库读取 API Key）
+    const client = await getVolcTextClient()
+    const stream = await client.chat.completions.create(options)
 
     let usage: TokenUsage | undefined
     let contentLength = 0
