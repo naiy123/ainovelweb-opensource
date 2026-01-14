@@ -382,7 +382,10 @@ export function AIWritingPanel({
         {/* Chapter Plot */}
         <div className="mb-4">
           <div className="mb-1 flex items-center justify-between">
-            <label className="text-sm font-medium text-neutral-950">本章核心剧情</label>
+            <label className="text-sm font-medium text-neutral-950">
+              本章核心剧情
+              <span className="text-red-500 ml-0.5">*</span>
+            </label>
           </div>
           <div className="relative">
             <textarea
