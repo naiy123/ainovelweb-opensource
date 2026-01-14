@@ -4,6 +4,7 @@ import { z } from "zod"
 import { ZodError } from "zod"
 import type { Prisma } from "@prisma/client"
 import { requireUserId } from "@/lib/auth/get-user"
+import { serializeArray, transformCard } from "@/lib/db-utils"
 
 // 卡片分类（不导出常量，避免 Next.js 路由文件限制）
 const CARD_CATEGORIES = ["character", "term", "item", "skill", "location", "faction", "event"] as const
@@ -30,30 +31,6 @@ const createCardSchema = z.object({
   isPinned: z.boolean().nullish(),
   attributes: z.record(z.string(), z.unknown()).nullish(),
 })
-
-// 辅助函数：将数组转为 JSON 字符串存储
-function serializeArray(arr: string[] | null | undefined): string | null {
-  if (!arr || arr.length === 0) return null
-  return JSON.stringify(arr)
-}
-
-// 辅助函数：将 JSON 字符串解析为数组
-function parseArray(str: string | null | undefined): string[] {
-  if (!str) return []
-  try {
-    return JSON.parse(str)
-  } catch {
-    return []
-  }
-}
-
-// 辅助函数：转换卡片数据（将 triggers 从 JSON 字符串转为数组）
-function transformCard(card: { triggers?: string | null; [key: string]: unknown }) {
-  return {
-    ...card,
-    triggers: parseArray(card.triggers),
-  }
-}
 
 // GET /api/novels/[novelId]/cards - 获取卡片列表
 export async function GET(

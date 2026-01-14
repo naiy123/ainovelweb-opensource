@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { z } from "zod"
 import { ZodError } from "zod"
 import { requireUserId } from "@/lib/auth/get-user"
+import { serializeArray, transformCard } from "@/lib/db-utils"
 
 const CARD_CATEGORIES = ["character", "term", "item", "skill", "location", "faction", "event"] as const
 
@@ -18,30 +19,6 @@ const updateCardSchema = z.object({
   sortOrder: z.number().optional(),
   attributes: z.record(z.string(), z.unknown()).optional().nullable(),
 })
-
-// 辅助函数：将数组转为 JSON 字符串存储
-function serializeArray(arr: string[] | null | undefined): string | null {
-  if (!arr || arr.length === 0) return null
-  return JSON.stringify(arr)
-}
-
-// 辅助函数：将 JSON 字符串解析为数组
-function parseArray(str: string | null | undefined): string[] {
-  if (!str) return []
-  try {
-    return JSON.parse(str)
-  } catch {
-    return []
-  }
-}
-
-// 辅助函数：转换卡片数据
-function transformCard(card: { triggers?: string | null; [key: string]: unknown }) {
-  return {
-    ...card,
-    triggers: parseArray(card.triggers),
-  }
-}
 
 // GET /api/novels/[novelId]/cards/[cardId] - 获取卡片详情
 export async function GET(

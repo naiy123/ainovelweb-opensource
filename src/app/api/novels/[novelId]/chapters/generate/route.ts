@@ -11,16 +11,7 @@ import { getModelConfig, calculateLinkedChaptersCredits } from "@/lib/ai/models"
 import { checkCredits, consumeCredits } from "@/lib/credits"
 import { logStreamComplete } from "@/lib/ai/logger"
 import type { CharacterAttributes } from "@/hooks/use-cards"
-
-// 辅助函数：将 JSON 字符串解析为数组
-function parseArray(str: string | null | undefined): string[] {
-  if (!str) return []
-  try {
-    return JSON.parse(str)
-  } catch {
-    return []
-  }
-}
+import { parseArray } from "@/lib/db-utils"
 
 /**
  * 根据触发词匹配卡片

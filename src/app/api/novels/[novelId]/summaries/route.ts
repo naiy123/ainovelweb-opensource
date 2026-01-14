@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { requireUserId } from "@/lib/auth/get-user"
-
-// 辅助函数：将 JSON 字符串解析为数组
-function parseArray(str: string | null | undefined): string[] {
-  if (!str) return []
-  try {
-    return JSON.parse(str)
-  } catch {
-    return []
-  }
-}
+import { parseArray } from "@/lib/db-utils"
 
 // GET /api/novels/[novelId]/summaries - 获取小说的所有章节摘要
 export async function GET(
