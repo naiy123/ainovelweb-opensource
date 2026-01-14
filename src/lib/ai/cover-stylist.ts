@@ -9,7 +9,9 @@
 import { getTextProvider, getImageProvider } from "./factory"
 import type { CoverGenerationParams, CoverGenerationResult } from "./types"
 import { buildStylistMetaPrompt } from "./prompts/cover"
-import { logAIRequest, logAIResponse, logStreamComplete, devLog } from "./logger"
+import { logAIRequest, logAIResponse, devLog } from "./logger"
+import { getVolcTextClient, VOLC_API_BASE_URL } from "./providers/volcengine/client"
+import { getSeedreamApiKey } from "@/lib/settings"
 
 // 火山引擎定价常量
 const PRICING = {
@@ -56,8 +58,8 @@ async function generateImagePrompt(params: CoverGenerationParams): Promise<Promp
 
   const startTime = Date.now()
 
-  // 直接调用底层 client，避免 Provider 内部重复打印日志
-  const { volcClient } = await import("./providers/volcengine/client")
+  // 动态获取客户端（从数据库读取 API Key）
+  const volcClient = await getVolcTextClient()
 
   const completion = await volcClient.chat.completions.create({
     model,
@@ -140,14 +142,17 @@ async function generateImageWithSeedream(prompt: string): Promise<ImageResult> {
 
   const startTime = Date.now()
 
-  // 直接调用底层 API，避免 Provider 内部重复打印日志
-  const { VOLC_API_BASE_URL } = await import("./providers/volcengine/client")
+  // 动态获取 API Key（从数据库读取）
+  const apiKey = await getSeedreamApiKey()
+  if (!apiKey) {
+    throw new Error("请先在设置中配置 Seedream API Key")
+  }
 
   const response = await fetch(`${VOLC_API_BASE_URL}/images/generations`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.VOLC_ARK_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,

@@ -9,15 +9,17 @@ import { generateCoverImage } from "@/lib/ai/cover"
 import { generateCoverImageStylist } from "@/lib/ai/cover-stylist"
 
 // 模型类型映射
-type QuickModel = "designer" | "stylist"
+// seedream 是本地版本默认模型，映射到风格家逻辑
+type QuickModel = "designer" | "stylist" | "seedream"
 
 const MODEL_CREDITS: Record<QuickModel, number> = {
   designer: IMAGE_CREDITS.COVER_DESIGNER,
   stylist: IMAGE_CREDITS.COVER_STYLIST,
+  seedream: 0, // 本地版本免费
 }
 
-// 两个模型都可用
-const AVAILABLE_MODELS: QuickModel[] = ["designer", "stylist"]
+// 可用模型：designer (Gemini), stylist/seedream (火山引擎)
+const AVAILABLE_MODELS: QuickModel[] = ["designer", "stylist", "seedream"]
 
 // POST /api/cover/generate-quick - 快速生成封面（一键生成）
 export async function POST(request: NextRequest) {
@@ -73,10 +75,11 @@ export async function POST(request: NextRequest) {
 
     // 获取所需灵感点（根据模型动态获取）
     const requiredCredits = MODEL_CREDITS[selectedModel]
-    const modelName = selectedModel === "designer" ? "设计家" : "风格家"
+    const modelName = selectedModel === "designer" ? "设计家" : "Seedream"
 
     // 根据模型选择生成函数
-    const generateFn = selectedModel === "stylist"
+    // seedream 和 stylist 都使用火山引擎风格家逻辑
+    const generateFn = (selectedModel === "stylist" || selectedModel === "seedream")
       ? generateCoverImageStylist
       : generateCoverImage
 

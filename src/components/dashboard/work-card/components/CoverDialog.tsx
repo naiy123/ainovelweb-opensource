@@ -12,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { IMAGE_CREDITS } from "@/lib/pricing/credits"
 import { GENRE_OPTIONS } from "../constants"
 import type { ChannelType } from "../types"
 
@@ -53,7 +52,7 @@ export function CoverDialog({
         <DialogHeader>
           <DialogTitle>智能生成封面</DialogTitle>
           <DialogDescription>
-            确认封面上显示的书名和作者名，消耗 {IMAGE_CREDITS.COVER_DESIGNER} 灵感点
+            使用 Seedream 模型生成封面，需配置豆包 + Seedream API
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -132,7 +131,7 @@ export function CoverDialog({
           </Button>
           <Button onClick={onGenerate} disabled={!coverTitle.trim() || !coverGenre}>
             <Sparkles className="mr-2 size-4" />
-            生成封面 · {IMAGE_CREDITS.COVER_DESIGNER}点
+            生成封面
           </Button>
         </DialogFooter>
       </DialogContent>
