@@ -12,9 +12,11 @@ import {
   X,
   Hash,
   Copy,
+  Key,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useUserStore } from "@/stores/user-store"
 
 interface UserProfile {
@@ -27,6 +29,11 @@ interface UserProfile {
   }
 }
 
+interface Settings {
+  doubao_api_key?: string
+  seedream_api_key?: string
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -36,8 +43,20 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const { updateNickname: updateGlobalNickname } = useUserStore()
 
+  // Settings state
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  // API Key inputs
+  const [apiKeys, setApiKeys] = useState({
+    doubao_api_key: "",
+    seedream_api_key: "",
+  })
+
   useEffect(() => {
     fetchProfile()
+    fetchSettings()
   }, [])
 
   const fetchProfile = async () => {
@@ -53,6 +72,25 @@ export default function ProfilePage() {
       toast.error("获取用户信息失败")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/settings")
+      if (res.ok) {
+        const data = await res.json()
+        setSettings(data)
+        // 填充已保存的值到输入框
+        setApiKeys({
+          doubao_api_key: data.doubao_api_key || "",
+          seedream_api_key: data.seedream_api_key || "",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    } finally {
+      setSettingsLoading(false)
     }
   }
 
@@ -84,6 +122,35 @@ export default function ProfilePage() {
       toast.error("更新失败")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveApiKey = async (key: string, value: string) => {
+    if (!value.trim()) {
+      toast.error("请输入 API Key")
+      return
+    }
+
+    setSavingSettings(true)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value.trim() }),
+      })
+
+      if (res.ok) {
+        toast.success("API Key 已保存")
+        fetchSettings()
+        setApiKeys((prev) => ({ ...prev, [key]: "" }))
+      } else {
+        toast.error("保存失败")
+      }
+    } catch (error) {
+      console.error("Failed to save API key:", error)
+      toast.error("保存失败")
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -123,14 +190,89 @@ export default function ProfilePage() {
         >
           <ArrowLeft className="size-5" />
         </Button>
-        <h1 className="text-2xl font-semibold text-gray-900">个人资料</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">设置</h1>
       </div>
 
-      {/* Profile Card */}
       <div className="space-y-6">
-        {/* Nickname */}
+        {/* API Keys */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 mb-4">
+            <Key className="size-5 text-[#2b7fff]" />
+            <h2 className="text-lg font-medium">API 密钥配置</h2>
+          </div>
+
+          <p className="text-sm text-gray-500 mb-4">
+            在 <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer" className="text-[#2b7fff] hover:underline">火山引擎方舟平台</a> 获取 API Key
+          </p>
+
+          {settingsLoading ? (
+            <div className="animate-pulse space-y-4">
+              <div className="h-10 bg-gray-100 rounded" />
+              <div className="h-10 bg-gray-100 rounded" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Doubao API Key */}
+              <div className="space-y-2">
+                <Label>
+                  豆包 API Key
+                  <span className="text-xs text-gray-400 ml-2">（文字生成）</span>
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={apiKeys.doubao_api_key}
+                    onChange={(e) =>
+                      setApiKeys((prev) => ({ ...prev, doubao_api_key: e.target.value }))
+                    }
+                    placeholder="输入 API Key"
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSaveApiKey("doubao_api_key", apiKeys.doubao_api_key)}
+                    disabled={savingSettings || !apiKeys.doubao_api_key}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </div>
+
+              {/* Seedream API Key */}
+              <div className="space-y-2">
+                <Label>
+                  Seedream API Key
+                  <span className="text-xs text-gray-400 ml-2">（图片生成）</span>
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={apiKeys.seedream_api_key}
+                    onChange={(e) =>
+                      setApiKeys((prev) => ({ ...prev, seedream_api_key: e.target.value }))
+                    }
+                    placeholder="输入 API Key"
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSaveApiKey("seedream_api_key", apiKeys.seedream_api_key)}
+                    disabled={savingSettings || !apiKeys.seedream_api_key}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Profile Card */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-medium mb-4">个人资料</h2>
+
+          {/* Nickname */}
+          <div className="flex items-center justify-between mb-4">
             <div className="flex-1">
               <p className="text-sm text-gray-500 mb-1">昵称</p>
               {editing ? (
@@ -165,7 +307,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span className="text-xl font-medium text-gray-900">
+                  <span className="text-base font-medium text-gray-900">
                     {profile.nickname || "未设置昵称"}
                   </span>
                   <Button
@@ -180,59 +322,44 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* User ID */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="flex items-center justify-between">
+          {/* Info List */}
+          <div className="space-y-3 pt-3 border-t border-gray-100">
             <div className="flex items-center gap-3">
-              <Hash className="size-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-500">用户 ID</p>
-                <p className="text-sm font-mono text-gray-900">
-                  {profile.id}
-                </p>
-              </div>
+              <Hash className="size-4 text-gray-400" />
+              <span className="text-sm text-gray-500">用户 ID:</span>
+              <span className="text-sm font-mono text-gray-700">{profile.id.slice(0, 12)}...</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-gray-500"
+                onClick={() => {
+                  navigator.clipboard.writeText(profile.id)
+                  toast.success("已复制")
+                }}
+              >
+                <Copy className="size-3 mr-1" />
+                复制
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-500 hover:text-gray-700"
-              onClick={() => {
-                navigator.clipboard.writeText(profile.id)
-                toast.success("已复制用户 ID")
-              }}
-            >
-              <Copy className="size-4 mr-1" />
-              复制
-            </Button>
-          </div>
-        </div>
 
-        {/* Info List */}
-        <div className="rounded-xl border border-gray-200 bg-white">
-          {/* Novels Count */}
-          <div className="flex items-center gap-4 border-b border-gray-100 px-6 py-4">
-            <BookOpen className="size-5 text-gray-400" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-500">作品数量</p>
-              <p className="text-base text-gray-900">{profile._count.novels} 部</p>
+            <div className="flex items-center gap-3">
+              <BookOpen className="size-4 text-gray-400" />
+              <span className="text-sm text-gray-500">作品数量:</span>
+              <span className="text-sm text-gray-700">{profile._count.novels} 部</span>
             </div>
-          </div>
 
-          {/* Join Date */}
-          <div className="flex items-center gap-4 px-6 py-4">
-            <Calendar className="size-5 text-gray-400" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-500">创建时间</p>
-              <p className="text-base text-gray-900">{formatDate(profile.createdAt)}</p>
+            <div className="flex items-center gap-3">
+              <Calendar className="size-4 text-gray-400" />
+              <span className="text-sm text-gray-500">创建时间:</span>
+              <span className="text-sm text-gray-700">{formatDate(profile.createdAt)}</span>
             </div>
           </div>
         </div>
 
         {/* Version Info */}
         <div className="text-center text-sm text-gray-400">
-          本地版本 · 无需登录
+          本地版本 · 数据存储在本地
         </div>
       </div>
     </div>
