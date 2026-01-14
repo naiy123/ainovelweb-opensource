@@ -1,12 +1,23 @@
-const { app, BrowserWindow, shell } = require('electron')
+/**
+ * Electron 主进程
+ */
+const { app, BrowserWindow, shell, ipcMain, Notification, dialog } = require('electron')
 const { spawn } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
+// 模块导入
+const { createMenu } = require('./menu')
+const { createTray, destroyTray } = require('./tray')
+
 let mainWindow
 let serverProcess
 
-// 获取应用根目录
+// ============ 路径工具函数 ============
+
+/**
+ * 获取应用根目录
+ */
 function getAppRoot() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'app')
@@ -14,17 +25,32 @@ function getAppRoot() {
   return path.join(__dirname, '..')
 }
 
-// 获取数据库路径
+/**
+ * 获取数据库路径
+ */
 function getDatabasePath() {
   if (app.isPackaged) {
-    // 打包后，数据库放在用户数据目录
     const userDataPath = app.getPath('userData')
     return path.join(userDataPath, 'data.db')
   }
   return path.join(getAppRoot(), 'prisma', 'data.db')
 }
 
-// 确保数据库目录存在
+/**
+ * 获取 preload 脚本路径
+ */
+function getPreloadPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app', 'electron', 'preload.js')
+  }
+  return path.join(__dirname, 'preload.js')
+}
+
+// ============ 数据库初始化 ============
+
+/**
+ * 确保数据库存在
+ */
 function ensureDatabaseExists() {
   const dbPath = getDatabasePath()
   const dbDir = path.dirname(dbPath)
@@ -33,7 +59,6 @@ function ensureDatabaseExists() {
     fs.mkdirSync(dbDir, { recursive: true })
   }
 
-  // 如果是打包版本且用户数据目录没有数据库，复制初始数据库
   if (app.isPackaged && !fs.existsSync(dbPath)) {
     const sourceDb = path.join(process.resourcesPath, 'app', 'prisma', 'data.db')
     if (fs.existsSync(sourceDb)) {
@@ -42,12 +67,28 @@ function ensureDatabaseExists() {
   }
 }
 
-// 启动 Next.js 服务器
+// ============ 服务器管理 ============
+
+/**
+ * 检查是否为开发模式
+ */
+function isDev() {
+  return !app.isPackaged
+}
+
+/**
+ * 启动 Next.js 服务器（仅生产模式）
+ */
 function startServer() {
+  // 开发模式下不启动 server（由 npm run dev 提供）
+  if (isDev()) {
+    console.log('[Main] Dev mode - using external Next.js dev server')
+    return
+  }
+
   const appRoot = getAppRoot()
   const serverPath = path.join(appRoot, '.next', 'standalone', 'server.js')
 
-  // 设置环境变量
   const env = {
     ...process.env,
     PORT: '3000',
@@ -55,8 +96,8 @@ function startServer() {
     DATABASE_URL: `file:${getDatabasePath()}`
   }
 
-  console.log('Starting server from:', serverPath)
-  console.log('Database path:', getDatabasePath())
+  console.log('[Main] Starting server from:', serverPath)
+  console.log('[Main] Database path:', getDatabasePath())
 
   serverProcess = spawn('node', [serverPath], {
     cwd: path.join(appRoot, '.next', 'standalone'),
@@ -65,57 +106,25 @@ function startServer() {
   })
 
   serverProcess.stdout.on('data', (data) => {
-    console.log(`Server: ${data}`)
+    console.log(`[Server] ${data}`)
   })
 
   serverProcess.stderr.on('data', (data) => {
-    console.error(`Server Error: ${data}`)
+    console.error(`[Server Error] ${data}`)
   })
 
   serverProcess.on('error', (error) => {
-    console.error('Failed to start server:', error)
+    console.error('[Main] Failed to start server:', error)
   })
 
   serverProcess.on('exit', (code) => {
-    console.log(`Server exited with code ${code}`)
+    console.log(`[Main] Server exited with code ${code}`)
   })
 }
 
-// 创建主窗口
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 768,
-    title: 'AI Novel Web',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    },
-    show: false // 等待加载完成再显示
-  })
-
-  // 加载应用
-  mainWindow.loadURL('http://localhost:3000')
-
-  // 页面加载完成后显示窗口
-  mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.show()
-  })
-
-  // 处理外部链接
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
-    return { action: 'deny' }
-  })
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-}
-
-// 等待服务器启动
+/**
+ * 等待服务器启动
+ */
 function waitForServer(retries = 30) {
   return new Promise((resolve, reject) => {
     const http = require('http')
@@ -143,16 +152,181 @@ function waitForServer(retries = 30) {
   })
 }
 
+// ============ 窗口管理 ============
+
+/**
+ * 创建主窗口
+ */
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1024,
+    minHeight: 768,
+    title: 'AI Novel Web',
+    icon: path.join(__dirname, '..', 'public', 'icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: getPreloadPath()
+    },
+    show: false
+  })
+
+  // 加载应用
+  mainWindow.loadURL('http://localhost:3000')
+
+  // 页面加载完成后显示窗口
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.show()
+  })
+
+  // 处理外部链接
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  // 窗口关闭时隐藏到托盘（Windows/Linux）
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting && process.platform !== 'darwin') {
+      event.preventDefault()
+      mainWindow.hide()
+    }
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+
+  // 创建菜单
+  createMenu(mainWindow)
+
+  // 创建托盘
+  createTray(mainWindow)
+
+  return mainWindow
+}
+
+// ============ IPC 处理器 ============
+
+/**
+ * 注册 IPC 处理器
+ */
+function registerIpcHandlers() {
+  // 窗口操作
+  ipcMain.on('window-minimize', () => {
+    mainWindow?.minimize()
+  })
+
+  ipcMain.on('window-maximize', () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow?.maximize()
+    }
+  })
+
+  ipcMain.on('window-close', () => {
+    mainWindow?.close()
+  })
+
+  ipcMain.handle('window-is-maximized', () => {
+    return mainWindow?.isMaximized() || false
+  })
+
+  // 系统通知
+  ipcMain.on('show-notification', (event, { title, body }) => {
+    if (Notification.isSupported()) {
+      new Notification({ title, body }).show()
+    }
+  })
+
+  // 打开外部链接
+  ipcMain.on('open-external', (event, url) => {
+    shell.openExternal(url)
+  })
+
+  // 获取应用版本
+  ipcMain.handle('get-version', () => {
+    return app.getVersion()
+  })
+
+  // 获取应用信息
+  ipcMain.handle('get-app-info', () => {
+    return {
+      name: app.getName(),
+      version: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      electron: process.versions.electron,
+      node: process.versions.node,
+      chrome: process.versions.chrome
+    }
+  })
+
+  // 保存文件
+  ipcMain.handle('save-file', async (event, { content, defaultName, fileType }) => {
+    const filters = {
+      txt: { name: 'Text Files', extensions: ['txt'] },
+      epub: { name: 'EPUB Files', extensions: ['epub'] },
+      json: { name: 'JSON Files', extensions: ['json'] }
+    }
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: defaultName,
+      filters: [filters[fileType] || filters.txt]
+    })
+
+    if (!result.canceled && result.filePath) {
+      fs.writeFileSync(result.filePath, content, 'utf-8')
+      return { success: true, path: result.filePath }
+    }
+
+    return { success: false }
+  })
+
+  // 打开文件
+  ipcMain.handle('open-file', async (event, options = {}) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: options.filters || [
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      const filePath = result.filePaths[0]
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return { success: true, path: filePath, content }
+    }
+
+    return { success: false }
+  })
+}
+
+// ============ 应用生命周期 ============
+
 // 应用准备就绪
 app.whenReady().then(async () => {
-  ensureDatabaseExists()
+  console.log('[Main] App ready, isDev:', isDev())
+
+  // 注册 IPC 处理器
+  registerIpcHandlers()
+
+  // 初始化数据库（仅生产模式）
+  if (!isDev()) {
+    ensureDatabaseExists()
+  }
+
+  // 启动服务器（仅生产模式）
   startServer()
 
   try {
     await waitForServer()
     createWindow()
   } catch (error) {
-    console.error('Failed to start application:', error)
+    console.error('[Main] Failed to start application:', error)
     app.quit()
   }
 })
@@ -168,19 +342,37 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (mainWindow === null) {
     createWindow()
+  } else {
+    mainWindow.show()
   }
 })
 
-// 应用退出前清理
+// 应用退出前
 app.on('before-quit', () => {
+  app.isQuitting = true
+  destroyTray()
   if (serverProcess) {
     serverProcess.kill()
   }
 })
 
-// 应用退出时确保服务器进程被终止
+// 应用退出时
 app.on('quit', () => {
   if (serverProcess) {
     serverProcess.kill('SIGTERM')
   }
 })
+
+// 阻止多实例
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
